@@ -140,7 +140,6 @@ return {
                     "taplo",
                     "terraformls",
                     "templ",
-                    "tsserver",
                     "yamlls",
                     "zls",
                 },
