@@ -151,7 +151,6 @@ return {
                             settings = {
                                 gopls = {
                                     gofumpt = false,
-                                    formatTool = "golines",
                                     semanticTokens = true,
                                     staticcheck = true,
                                     hints = {
