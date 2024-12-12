@@ -58,6 +58,37 @@ return {
             local lsp_zero = require('lsp-zero')
             lsp_zero.extend_lspconfig()
 
+            local buffer_autoformat = function(bufnr)
+                local group = 'lsp_autoformat'
+                vim.api.nvim_create_augroup(group, { clear = false })
+                vim.api.nvim_clear_autocmds({ group = group, buffer = bufnr })
+
+                vim.api.nvim_create_autocmd('BufWritePre', {
+                    buffer = bufnr,
+                    group = group,
+                    desc = 'LSP format on save',
+                    callback = function()
+                        -- note: do not enable async formatting
+                        vim.lsp.buf.format({ async = false, timeout_ms = 10000 })
+                    end,
+                })
+            end
+
+            vim.api.nvim_create_autocmd('LspAttach', {
+                callback = function(event)
+                    local id = vim.tbl_get(event, 'data', 'client_id')
+                    local client = id and vim.lsp.get_client_by_id(id)
+                    if client == nil then
+                        return
+                    end
+
+                    -- make sure there is at least one client with formatting capabilities
+                    if client.supports_method('textDocument/formatting') then
+                        buffer_autoformat(event.buf)
+                    end
+                end
+            })
+
             --- if you want to know more about lsp-zero and mason.nvim
             --- read this: https://github.com/VonHeikemen/lsp-zero.nvim/blob/v3.x/doc/md/guides/integrate-with-mason-nvim.md
             lsp_zero.on_attach(function(client, bufnr)
@@ -65,7 +96,7 @@ return {
                 -- to learn the available actions
                 if client.server_capabilities.inlayHintProvider then
                     vim.g.inlay_hints_visible = true
-                    vim.lsp.inlay_hint.enable(bufnr, true)
+                    vim.lsp.inlay_hint.enable(true, { bufnr })
                 end
                 lsp_zero.default_keymaps({ buffer = bufnr })
             end)
@@ -74,11 +105,29 @@ return {
 
             })
 
+            vim.api.nvim_create_autocmd('LspAttach', {
+                callback = function(args)
+                    local client = vim.lsp.get_client_by_id(args.client_id)
+                    if not client then return end
+
+                    if client.supports_method('textDocument/formatting') then
+                        vim.api.nvim_create_autocmd('BufWritePre', {
+                            buffer = args.buf,
+                            callback = function()
+                                vim.lsp.buf.format({ bufnr = args.buf, id = client.id })
+                            end
+                        })
+                    end
+                end,
+            })
+
+
+            require('mason').setup()
+
             require('mason-lspconfig').setup({
                 ensure_installed = {
                     "clangd",
                     "bashls",
-                    "cmake",
                     "cssls",
                     "dockerls",
                     "eslint",
@@ -86,9 +135,7 @@ return {
                     "golangci_lint_ls",
                     "jsonls",
                     "html",
-                    "htmx",
                     "lua_ls",
-                    "nginx_language_server",
                     "sqls",
                     "taplo",
                     "terraformls",
@@ -103,6 +150,8 @@ return {
                         require('lspconfig').gopls.setup({
                             settings = {
                                 gopls = {
+                                    gofumpt = false,
+                                    formatTool = "golines",
                                     semanticTokens = true,
                                     staticcheck = true,
                                     hints = {
