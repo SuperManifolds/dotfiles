@@ -15,6 +15,19 @@ return {
         lazy = false,
         config = true,
     },
+    {
+        "ray-x/go.nvim",
+        dependencies = { -- optional packages
+            "ray-x/guihua.lua",
+            "neovim/nvim-lspconfig",
+            "nvim-treesitter/nvim-treesitter",
+        },
+        config = function()
+        end,
+        event = { "CmdlineEnter" },
+        ft = { "go", 'gomod' },
+        build = ':lua require("go.install").update_all_sync()'
+    },
 
     -- Autocompletion
     {
@@ -147,30 +160,7 @@ return {
                 handlers = {
                     lsp_zero.default_setup,
                     gopls = function()
-                        require('lspconfig').gopls.setup({
-                            settings = {
-                                gopls = {
-                                    gofumpt = false,
-                                    semanticTokens = true,
-                                    staticcheck = true,
-                                    hints = {
-                                        assignVariableTypes = true,
-                                        compositeLiteralFields = true,
-                                        compositeLiteralTypes = true,
-                                        constantValues = true,
-                                        functionTypeParameters = true,
-                                        parameterNames = true,
-                                        rangeVariableTypes = true
-                                    },
-                                    analyses = {
-                                        shadow = true,
-                                        unusedwrite = true,
-                                        useany = true,
-                                        unusedvariable = true,
-                                    },
-                                }
-                            }
-                        })
+
                     end,
                     ts_ls = function()
                         -- (Optional) Configure tsserver for neovim
@@ -255,6 +245,24 @@ return {
                         })
                     end
                 }
+            })
+
+            require('go').setup {
+                gofmt = 'golines',
+                goimports = 'golines',
+                max_line_len = 120,
+            }
+            local cfg = require 'go.lsp'.config() -- config() return the go.nvim gopls setup
+
+            require('lspconfig').gopls.setup(cfg)
+
+            local format_sync_grp = vim.api.nvim_create_augroup("GoFormat", {})
+            vim.api.nvim_create_autocmd("BufWritePre", {
+                pattern = "*.go",
+                callback = function()
+                    require('go.format').gofmt()
+                end,
+                group = format_sync_grp,
             })
         end
     }
