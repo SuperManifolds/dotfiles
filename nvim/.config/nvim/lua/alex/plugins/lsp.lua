@@ -140,7 +140,7 @@ return {
                     "taplo",
                     "terraformls",
                     "templ",
-                    "ts_tls",
+                    "ts_ls",
                     "yamlls",
                     "zls",
                 },
@@ -172,9 +172,9 @@ return {
                             }
                         })
                     end,
-                    tsserver = function()
+                    ts_ls = function()
                         -- (Optional) Configure tsserver for neovim
-                        require('lspconfig').tsserver.setup({
+                        require('lspconfig').ts_ls.setup({
                             settings = {
                                 typescript = {
                                     inlayHints = {
