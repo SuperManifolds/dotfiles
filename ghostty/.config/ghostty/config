@@ -1,0 +1,14 @@
+theme = Tomorrow Night
+font-family = "JetBrains Mono NerdFont Mono"
+background-opacity = 0.95
+background-blur-radius = 25
+macos-option-as-alt = true
+background = 15171a
+cursor-style = bar
+window-padding-x = 4
+window-colorspace = display-p3
+copy-on-select = false
+keybind = shift+right=unbind
+keybind = shift+left=unbind
+keybind = shift+down=unbind
+keybind = shift+up=unbind
