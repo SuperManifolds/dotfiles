@@ -264,6 +264,22 @@ return {
                 end,
                 group = format_sync_grp,
             })
+
+            vim.diagnostic.config({
+                virtual_text = {
+                    format = function(diagnostic)
+                        -- Filter out "typecheck:" messages
+                        if string.find(diagnostic.message, "typecheck:") then
+                            return nil
+                        end
+                        return diagnostic.message
+                    end,
+                },
+                signs = true,
+                underline = true,
+                update_in_insert = false,
+                severity_sort = true,
+            })
         end
     }
 }
