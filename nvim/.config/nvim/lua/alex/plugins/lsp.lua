@@ -251,8 +251,15 @@ return {
                 gofmt = 'golines',
                 goimports = 'golines',
                 max_line_len = 120,
+                diagnostic = false,
             }
             local cfg = require 'go.lsp'.config() -- config() return the go.nvim gopls setup
+
+            cfg.settings = cfg.settings or {}
+            cfg.settings.gopls = cfg.settings.gopls or {}
+
+            cfg.settings.gopls.diagnosticsDelay = "1s"
+            cfg.settings.gopls.diagnosticsTrigger = "Edit"
 
             require('lspconfig').gopls.setup(cfg)
 
@@ -277,8 +284,8 @@ return {
                 },
                 signs = true,
                 underline = true,
-                update_in_insert = false,
                 severity_sort = true,
+                update_in_insert = true,
             })
         end
     }
