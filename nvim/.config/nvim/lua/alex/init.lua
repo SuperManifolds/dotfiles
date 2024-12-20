@@ -11,9 +11,12 @@ vim.filetype.add({
 
 vim.api.nvim_create_autocmd("VimEnter", {
     pattern = "*",
-    command = "belowright 10split | terminal"
+    callback = function()
+        local current_win = vim.api.nvim_get_current_win() -- Save the current window
+        vim.cmd("belowright 10split | terminal")           -- Open terminal in a split
+        vim.api.nvim_set_current_win(current_win)          -- Restore the original window
+    end,
 })
-
 
 local golang_organize_imports = function(bufnr, isPreflight)
     local params = vim.lsp.util.make_range_params(nil, vim.lsp.util._get_offset_encoding(bufnr))
