@@ -23,6 +23,9 @@ end)
 local map = vim.api.nvim_set_keymap
 local opts = { noremap = true, silent = true }
 
+map('n', 's', '<c-w>', opts)
+vim.api.nvim_set_keymap('t', '<Esc>', '<C-\\><C-n>', { noremap = true, silent = true })
+
 -- Move to previous/next
 map('n', '<A-,>', '<Cmd>BufferPrevious<CR>', opts)
 map('n', '<A-.>', '<Cmd>BufferNext<CR>', opts)
