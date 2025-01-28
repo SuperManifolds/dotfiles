@@ -260,6 +260,7 @@ return {
 
             cfg.settings.gopls.diagnosticsDelay = "1s"
             cfg.settings.gopls.diagnosticsTrigger = "Edit"
+            cfg.settings.gopls.usePlaceholders = false
 
             require('lspconfig').gopls.setup(cfg)
 
