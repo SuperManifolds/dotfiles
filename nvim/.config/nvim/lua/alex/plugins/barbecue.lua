@@ -22,7 +22,7 @@ return {
 
                     -- Get the deepest (last) symbol
                     local deepest_item = data[#data]
-                    local line_number = deepest_item.scope.start.line + 1 -- Convert to 1-based line number
+                    local line_number = deepest_item.scope.start.line
 
                     return string.format("    %%#BarbecueLineNumber#%d%%* ", line_number)
                 end
