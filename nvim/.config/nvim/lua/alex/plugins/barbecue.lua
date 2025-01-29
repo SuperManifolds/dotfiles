@@ -7,8 +7,26 @@ return {
             "SmiteshP/nvim-navic",
             "nvim-tree/nvim-web-devicons", -- optional dependency
         },
-        opts = {
-            -- configurations go here
-        },
+        config = function()
+            vim.api.nvim_set_hl(0, "BarbecueLineNumber", { link = "CursorLineNr" })
+
+            require("barbecue").setup({
+                attach_navic = true,
+                lead_custom_section = function()
+                    local navic = require("nvim-navic")
+                    local data = navic.get_data()
+
+                    if not data or vim.tbl_isempty(data) then
+                        return "       "
+                    end
+
+                    -- Get the deepest (last) symbol
+                    local deepest_item = data[#data]
+                    local line_number = deepest_item.scope.start.line + 1 -- Convert to 1-based line number
+
+                    return string.format("    %%#BarbecueLineNumber#%d%%* ", line_number)
+                end
+            })
+        end,
     }
 }
