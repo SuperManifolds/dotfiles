@@ -20,10 +20,18 @@ return {
                         return "       "
                     end
 
-                    -- Get the deepest (last) symbol
-                    local deepest_item = data[#data]
-                    local line_number = deepest_item.scope.start.line
+                    local best_candidate = data[#data] -- Default to last (deepest) symbol
 
+                    if best_candidate.type == "Field" and #data > 1 then
+                        for i = #data - 1, 1, -1 do
+                            if data[i].type == "Struct" or data[i].type == "Class" then
+                                best_candidate = data[i]
+                                break
+                            end
+                        end
+                    end
+
+                    local line_number = best_candidate.scope.start.line
                     return string.format("    %%#BarbecueLineNumber#%d%%* ", line_number)
                 end
             })
