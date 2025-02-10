@@ -301,6 +301,18 @@ return {
                 severity_sort = true,
                 update_in_insert = true,
             })
+
+
+            require('lspconfig').sourcekit.setup({
+                cmd = { '/Library/Developer/CommandLineTools/usr/bin/sourcekit-lsp' },
+                capabilities = {
+                    workspace = {
+                        didChangeWatchedFiles = {
+                            dynamicRegistration = true,
+                        },
+                    },
+                },
+            })
         end
     }
 }
