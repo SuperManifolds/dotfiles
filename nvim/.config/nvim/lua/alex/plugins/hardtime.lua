@@ -17,6 +17,19 @@ return {
                     end,
                     length = 2,                      -- the length of actual key strokes that matches this pattern
                 },
+                ["$%a"] = {
+                    message = function()
+                        return "Use A instead of $a" -- return the hint message you want to display
+                    end,
+                    length = 2,                      -- the length of actual key strokes that matches this pattern
+                },
+                ["^%i"] = {
+                    message = function()
+                        return "Use I instead of ^i" -- return the hint message you want to display
+                    end,
+                    length = 2,                      -- the length of actual key strokes that matches this pattern
+                },
+
             },
         }
     },
