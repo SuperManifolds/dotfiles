@@ -5,10 +5,6 @@ return {
         dependencies = { "MunifTanjim/nui.nvim" },
         opts = {
             disabled_keys = {
-                ["<Up>"] = {},
-                ["<Down>"] = {},
-                ["<Left>"] = {},
-                ["<Right>"] = {},
             },
             hints = {
                 ["v%V"] = {
