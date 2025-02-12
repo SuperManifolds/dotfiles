@@ -188,6 +188,10 @@ return {
                                         includeInlayPropertyDeclarationTypeHints = true,
                                         includeInlayFunctionLikeReturnTypeHints = true,
                                         includeInlayEnumMemberValueHints = true,
+                                    },
+                                    format = {
+                                        insertSpaceBeforeFunctionParenthesis = true,
+                                        insertSpaceAfterConstructor = true,
                                     }
                                 }
                             }
