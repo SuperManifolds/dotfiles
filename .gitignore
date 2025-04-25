@@ -1,2 +1,5 @@
 nvim/.config/nvim/lazy-lock.json
+raycast/.config/raycast/extensions
+karabiner/.config/karabiner/automatic_backups/**
 tmux/.config/tmux/plugins
+.DS_Store
