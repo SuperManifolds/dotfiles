@@ -26,7 +26,7 @@ return {
         end,
         event = { "CmdlineEnter" },
         ft = { "go", 'gomod' },
-        build = ':lua require("go.install").update_all_sync()'
+        build = ':lua require("go.install").update_all_sync()',
     },
 
     -- Autocompletion
@@ -269,6 +269,9 @@ return {
                 goimports = 'golines',
                 max_line_len = 120,
                 diagnostic = false,
+                remap_commands = {
+                    GoDoc = false,
+                },
             }
             local cfg = require 'go.lsp'.config() -- config() return the go.nvim gopls setup
 

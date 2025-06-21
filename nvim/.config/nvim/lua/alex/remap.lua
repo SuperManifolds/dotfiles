@@ -114,3 +114,7 @@ vim.keymap.set('n', 'e]', '<cmd>lua vim.diagnostic.goto_next()<cr>', with_desc("
 vim.keymap.set('n', 'e[', '<cmd>lua vim.diagnostic.goto_prev()<cr>', with_desc("Go to previous diagnostic"))
 
 vim.api.nvim_set_keymap("n", "<Leader>doc", ":lua require('neogen').generate()<CR>", with_desc("Generate documentation"))
+
+vim.keymap.set("n", "<leader>gd", function()
+    vim.cmd("GoDoc " .. vim.fn.expand("<cword>"))
+end, with_desc("Open GoDoc"))
