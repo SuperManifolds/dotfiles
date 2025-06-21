@@ -156,6 +156,7 @@ return {
                     "ts_ls",
                     "yamlls",
                     "zls",
+                    "superhtml",
                 },
                 handlers = {
                     lsp_zero.default_setup,
