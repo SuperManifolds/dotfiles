@@ -282,6 +282,11 @@ return {
             cfg.settings.gopls.diagnosticsDelay = "1s"
             cfg.settings.gopls.diagnosticsTrigger = "Edit"
             cfg.settings.gopls.usePlaceholders = false
+            cfg.settings.gopls["ui.semanticTokens"] = true
+            cfg.settings.gopls["ui.semanticTokenModifiers"] = cfg.settings.gopls.semanantictokenModifiers
+            cfg.settings.gopls["ui.semanticTokenTypes"] = cfg.settings.gopls.semanantictokenTypes
+            cfg.settings.gopls.semanticTokenModifiers = nil
+            cfg.settings.gopls.semanticTokenTypes = nil
 
             require('lspconfig').gopls.setup(cfg)
 
