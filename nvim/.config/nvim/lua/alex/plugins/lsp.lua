@@ -17,6 +17,7 @@ return {
     },
     {
         "ray-x/go.nvim",
+        commit = "320f124",
         dependencies = { -- optional packages
             "ray-x/guihua.lua",
             "neovim/nvim-lspconfig",
@@ -282,11 +283,12 @@ return {
             cfg.settings.gopls.diagnosticsDelay = "1s"
             cfg.settings.gopls.diagnosticsTrigger = "Edit"
             cfg.settings.gopls.usePlaceholders = false
-            cfg.settings.gopls["ui.semanticTokens"] = true
-            cfg.settings.gopls["ui.semanticTokenModifiers"] = cfg.settings.gopls.semanantictokenModifiers
-            cfg.settings.gopls["ui.semanticTokenTypes"] = cfg.settings.gopls.semanantictokenTypes
-            cfg.settings.gopls.semanticTokenModifiers = nil
-            cfg.settings.gopls.semanticTokenTypes = nil
+            --cfg.settings.gopls["ui.semanticTokens"] = true
+            --cfg.settings.gopls.semanticTokens = true
+            --            cfg.settings.gopls["ui.semanticTokenModifiers"] = cfg.settings.gopls.semananticTokenModifiers
+            --cfg.settings.gopls["ui.semanticTokenTypes"] = cfg.settings.gopls.semananticTokenTypes
+            --cfg.settings.gopls.semanticTokenModifiers = nil
+            --cfg.settings.gopls.semanticTokenTypes = nil
 
             require('lspconfig').gopls.setup(cfg)
 
