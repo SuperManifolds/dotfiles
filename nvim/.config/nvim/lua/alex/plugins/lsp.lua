@@ -290,6 +290,12 @@ return {
             --cfg.settings.gopls.semanticTokenModifiers = nil
             --cfg.settings.gopls.semanticTokenTypes = nil
 
+            cfg.capabilities = cfg.capabilities or {}
+            cfg.capabilities.workspace = {
+                didChangeWatchedFiles = {
+                    dynamicRegistration = true,
+                },
+            }
             require('lspconfig').gopls.setup(cfg)
 
             local format_sync_grp = vim.api.nvim_create_augroup("GoFormat", {})
