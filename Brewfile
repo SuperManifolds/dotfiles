@@ -68,8 +68,11 @@ cask "textual"
 cask "utm"
 cask "whisky"
 
-mas "CrystalClearSound", id: 6695723746
 mas "Dark Noise", id: 1465439395
+mas "Rules", id: 6461118886
+mas "Play", id: 1596506190
+mas "Mela", id: 1568924476
+mas "Parcel", id: 375589283
 mas "Flighty", id: 1358823008
 mas "HomeControl", id: 1547121417
 mas "Magnet", id: 441258766

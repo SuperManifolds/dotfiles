@@ -1,5 +1,8 @@
 {
-    "global": { "enable_notification_window": false },
+    "global": {
+        "enable_notification_window": false,
+        "show_in_menu_bar": false
+    },
     "profiles": [
         {
             "complex_modifications": {
@@ -62,12 +65,12 @@
                     },
                     "simple_modifications": [
                         {
-                            "from": { "key_code": "escape" },
-                            "to": [{ "pointing_button": "button5" }]
-                        },
-                        {
                             "from": { "key_code": "caps_lock" },
                             "to": [{ "key_code": "escape" }]
+                        },
+                        {
+                            "from": { "key_code": "escape" },
+                            "to": [{ "pointing_button": "button5" }]
                         }
                     ]
                 },

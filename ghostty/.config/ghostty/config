@@ -12,3 +12,4 @@ keybind = shift+right=unbind
 keybind = shift+left=unbind
 keybind = shift+down=unbind
 keybind = shift+up=unbind
+keybind = shift+enter=text:\n
