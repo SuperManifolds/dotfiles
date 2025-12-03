@@ -17,7 +17,6 @@ return {
     },
     {
         "ray-x/go.nvim",
-        commit = "320f124",
         dependencies = { -- optional packages
             "ray-x/guihua.lua",
             "neovim/nvim-lspconfig",
@@ -71,6 +70,15 @@ return {
             -- This is where all the LSP shenanigans will live
             local lsp_zero = require('lsp-zero')
             lsp_zero.extend_lspconfig()
+
+            -- Filter out "no package metadata" gopls messages
+            local original_notify = vim.notify
+            vim.notify = function(msg, level, opts)
+                if type(msg) == "string" and msg:find("no package metadata") then
+                    return
+                end
+                original_notify(msg, level, opts)
+            end
 
             local buffer_autoformat = function(bufnr)
                 local group = 'lsp_autoformat'
@@ -145,7 +153,6 @@ return {
                     "cssls",
                     "dockerls",
                     "eslint",
-                    "gopls",
                     "golangci_lint_ls",
                     "jsonls",
                     "html",
@@ -161,9 +168,6 @@ return {
                 },
                 handlers = {
                     lsp_zero.default_setup,
-                    gopls = function()
-
-                    end,
                     ts_ls = function()
                         -- (Optional) Configure tsserver for neovim
                         require('lspconfig').ts_ls.setup({
@@ -283,12 +287,7 @@ return {
             cfg.settings.gopls.diagnosticsDelay = "1s"
             cfg.settings.gopls.diagnosticsTrigger = "Edit"
             cfg.settings.gopls.usePlaceholders = false
-            --cfg.settings.gopls["ui.semanticTokens"] = true
-            --cfg.settings.gopls.semanticTokens = true
-            --            cfg.settings.gopls["ui.semanticTokenModifiers"] = cfg.settings.gopls.semananticTokenModifiers
-            --cfg.settings.gopls["ui.semanticTokenTypes"] = cfg.settings.gopls.semananticTokenTypes
-            --cfg.settings.gopls.semanticTokenModifiers = nil
-            --cfg.settings.gopls.semanticTokenTypes = nil
+            cfg.settings.gopls.semanticTokens = true
 
             cfg.capabilities = cfg.capabilities or {}
             cfg.capabilities.workspace = {
