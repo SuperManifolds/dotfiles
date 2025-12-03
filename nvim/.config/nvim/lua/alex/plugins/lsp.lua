@@ -123,9 +123,6 @@ return {
                 lsp_zero.default_keymaps({ buffer = bufnr })
             end)
 
-            require('lspconfig').clangd.setup({
-
-            })
 
             vim.api.nvim_create_autocmd('LspAttach', {
                 callback = function(args)
@@ -148,7 +145,6 @@ return {
 
             require('mason-lspconfig').setup({
                 ensure_installed = {
-                    "clangd",
                     "bashls",
                     "cssls",
                     "dockerls",
