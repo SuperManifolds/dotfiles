@@ -165,8 +165,7 @@ return {
                 handlers = {
                     lsp_zero.default_setup,
                     ts_ls = function()
-                        -- (Optional) Configure tsserver for neovim
-                        require('lspconfig').ts_ls.setup({
+                        vim.lsp.config('ts_ls', {
                             settings = {
                                 typescript = {
                                     inlayHints = {
@@ -198,9 +197,10 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('ts_ls')
                     end,
                     basedpyright = function()
-                        require('lspconfig').pyright.setup({
+                        vim.lsp.config('pyright', {
                             settings = {
                                 python = {
                                     analysis = {
@@ -213,34 +213,38 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('pyright')
                     end,
                     rust_analyzer = function()
-                        require('lspconfig').rust_analyzer.setup({
-                            checkOnSave = {
-                                command = "clippy"
-                            },
-                            inlayHints = {
-                                bindingModeHints = { enable = true },
-                                chainingHints = { enable = true },
-                                closingBraceHints = { enable = true },
-                                closureCaptureTypeHints = { enable = true },
-                                closureReturnTypeHints = { enable = true },
-                                discriminantHints = { enable = true },
-                                expressionAdjustmentHints = { enable = true },
-                                implicitDropsHints = { enable = true },
-                                lifetimeElisionHints = { enable = true },
-                                parameterHints = { enable = true },
-                                rangeExclusionHints = { enable = true },
-                                typeHints = { enable = true },
-                            },
-                            typing = {
-                                autoClosingAngleBrackets = { enable = true }
+                        vim.lsp.config('rust_analyzer', {
+                            settings = {
+                                checkOnSave = {
+                                    command = "clippy"
+                                },
+                                inlayHints = {
+                                    bindingModeHints = { enable = true },
+                                    chainingHints = { enable = true },
+                                    closingBraceHints = { enable = true },
+                                    closureCaptureTypeHints = { enable = true },
+                                    closureReturnTypeHints = { enable = true },
+                                    discriminantHints = { enable = true },
+                                    expressionAdjustmentHints = { enable = true },
+                                    implicitDropsHints = { enable = true },
+                                    lifetimeElisionHints = { enable = true },
+                                    parameterHints = { enable = true },
+                                    rangeExclusionHints = { enable = true },
+                                    typeHints = { enable = true },
+                                },
+                                typing = {
+                                    autoClosingAngleBrackets = { enable = true }
+                                }
                             }
                         })
+                        vim.lsp.enable('rust_analyzer')
                     end,
 
                     lua_ls = function()
-                        require('lspconfig').lua_ls.setup({
+                        vim.lsp.config('lua_ls', {
                             settings = {
                                 Lua = {
                                     diagnostics = {
@@ -249,10 +253,11 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('lua_ls')
                     end,
 
                     yamlls = function()
-                        require('lspconfig').yamlls.setup({
+                        vim.lsp.config('yamlls', {
                             settings = {
                                 yaml = {
                                     schemas = {
@@ -262,6 +267,7 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('yamlls')
                     end
                 }
             })
@@ -274,24 +280,24 @@ return {
                 remap_commands = {
                     GoDoc = false,
                 },
-            }
-            local cfg = require 'go.lsp'.config() -- config() return the go.nvim gopls setup
-
-            cfg.settings = cfg.settings or {}
-            cfg.settings.gopls = cfg.settings.gopls or {}
-
-            cfg.settings.gopls.diagnosticsDelay = "1s"
-            cfg.settings.gopls.diagnosticsTrigger = "Edit"
-            cfg.settings.gopls.usePlaceholders = false
-            cfg.settings.gopls.semanticTokens = true
-
-            cfg.capabilities = cfg.capabilities or {}
-            cfg.capabilities.workspace = {
-                didChangeWatchedFiles = {
-                    dynamicRegistration = true,
+                lsp_cfg = {
+                    settings = {
+                        gopls = {
+                            diagnosticsDelay = "1s",
+                            diagnosticsTrigger = "Edit",
+                            usePlaceholders = false,
+                            semanticTokens = true,
+                        }
+                    },
+                    capabilities = {
+                        workspace = {
+                            didChangeWatchedFiles = {
+                                dynamicRegistration = true,
+                            },
+                        },
+                    },
                 },
             }
-            require('lspconfig').gopls.setup(cfg)
 
             local format_sync_grp = vim.api.nvim_create_augroup("GoFormat", {})
             vim.api.nvim_create_autocmd("BufWritePre", {
@@ -319,7 +325,7 @@ return {
             })
 
 
-            require('lspconfig').sourcekit.setup({
+            vim.lsp.config('sourcekit', {
                 cmd = { '/Library/Developer/CommandLineTools/usr/bin/sourcekit-lsp' },
                 capabilities = {
                     workspace = {
@@ -329,6 +335,7 @@ return {
                     },
                 },
             })
+            vim.lsp.enable('sourcekit')
         end
     }
 }
