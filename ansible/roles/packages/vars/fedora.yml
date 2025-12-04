@@ -16,7 +16,6 @@ dnf_packages:
   - zsh
   - yt-dlp
   - mariadb-server
-  - community-mysql-server
   - golang
   # New packages
   - pipx
