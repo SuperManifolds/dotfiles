@@ -51,16 +51,16 @@
 
 # pyenv COPR
 - name: Enable pyenv COPR repository
-  community.general.copr:
-    name: "@pyenv/pyenv"
-    state: enabled
+  ansible.builtin.command:
+    cmd: dnf copr enable -y @pyenv/pyenv
+    creates: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:group_pyenv:pyenv.repo
   become: true
 
 # Neovim COPR (latest stable)
 - name: Enable Neovim COPR repository
-  community.general.copr:
-    name: "agriffis/neovim-nightly"
-    state: enabled
+  ansible.builtin.command:
+    cmd: dnf copr enable -y agriffis/neovim-nightly
+    creates: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:agriffis:neovim-nightly.repo
   become: true
 
 # HashiCorp repository (for vault)

@@ -6,9 +6,9 @@
 
 # Ghostty COPR repository
 - name: Enable Ghostty COPR repository
-  community.general.copr:
-    name: "scottames/ghostty"
-    state: enabled
+  ansible.builtin.command:
+    cmd: dnf copr enable -y scottames/ghostty
+    creates: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:scottames:ghostty.repo
   become: true
 
 - name: Install Ghostty
