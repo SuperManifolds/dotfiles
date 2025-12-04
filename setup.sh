@@ -67,7 +67,19 @@ install_fedora_deps() {
     fi
 }
 
+install_homebrew_packages() {
+    echo "==> Installing Homebrew packages..."
+    brew bundle --file="$DOTFILES_DIR/Brewfile"
+
+    if [[ "$HEADLESS" != "true" ]]; then
+        brew bundle --file="$DOTFILES_DIR/Brewfile.desktop"
+    fi
+}
+
 run_ansible() {
+    echo "==> Installing Ansible collections..."
+    ansible-galaxy collection install community.general --upgrade
+
     echo "==> Running Ansible playbook..."
     cd "$DOTFILES_DIR/ansible"
 
@@ -78,9 +90,9 @@ run_ansible() {
     fi
 
     if [[ "$OS" == "macos" ]]; then
-        ansible-playbook -i inventory.yml playbook.yml "${extra_vars[@]}"
+        ansible-playbook -i inventory.yml playbook.yml ${extra_vars[@]+"${extra_vars[@]}"}
     else
-        ansible-playbook -i inventory.yml playbook.yml "${extra_vars[@]}" --ask-become-pass
+        ansible-playbook -i inventory.yml playbook.yml ${extra_vars[@]+"${extra_vars[@]}"} --ask-become-pass
     fi
 }
 
@@ -93,6 +105,7 @@ main() {
 
     if [[ "$OS" == "macos" ]]; then
         install_macos_deps
+        install_homebrew_packages
     else
         install_fedora_deps
     fi

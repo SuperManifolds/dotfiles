@@ -1,16 +1,21 @@
 ---
-- name: Install Homebrew CLI packages from Brewfile
-  community.general.homebrew_bundle:
-    file: "{{ playbook_dir }}/../Brewfile"
-    state: present
-  become: false
+# Homebrew packages are installed directly in setup.sh (needs TTY for sudo)
 
-- name: Install Homebrew desktop packages from Brewfile.desktop
-  community.general.homebrew_bundle:
-    file: "{{ playbook_dir }}/../Brewfile.desktop"
-    state: present
-  become: false
+# JetBrains Mono Nerd Font
+- name: Check if JetBrains Mono Nerd Font is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/Library/Fonts/JetBrainsMonoNerdFont-Regular.ttf"
+  register: jetbrains_font
   when: install_desktop | default(true)
+
+- name: Download JetBrains Mono Nerd Font
+  ansible.builtin.unarchive:
+    src: "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+    dest: "{{ ansible_env.HOME }}/Library/Fonts"
+    remote_src: true
+  when:
+    - install_desktop | default(true)
+    - not jetbrains_font.stat.exists
 
 # Dev tools (via mise)
 - name: Install tools via mise
