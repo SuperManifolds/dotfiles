@@ -151,18 +151,31 @@
 # Swiftly (Swift version manager)
 - name: Check if swiftly is installed
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.local/bin/swiftly"
+    path: "{{ ansible_env.HOME }}/.local/share/swiftly/bin/swiftly"
   register: swiftly_installed
 
-- name: Install swiftly
-  ansible.builtin.shell:
-    cmd: curl -L https://swiftlang.github.io/swiftly/swiftly-install.sh | bash -s -- -y
+- name: Download swiftly
+  ansible.builtin.unarchive:
+    src: "https://download.swift.org/swiftly/linux/swiftly-{{ ansible_architecture }}.tar.gz"
+    dest: "{{ ansible_env.HOME }}"
+    remote_src: true
+  when: not swiftly_installed.stat.exists
+
+- name: Initialize swiftly
+  ansible.builtin.command:
+    cmd: "{{ ansible_env.HOME }}/swiftly init -y --quiet-shell-followup"
   when: not swiftly_installed.stat.exists
   changed_when: true
 
+- name: Clean up swiftly binary
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/swiftly"
+    state: absent
+  when: not swiftly_installed.stat.exists
+
 - name: Install Swift latest
   ansible.builtin.command:
-    cmd: "{{ ansible_env.HOME }}/.local/bin/swiftly install latest"
+    cmd: "{{ ansible_env.HOME }}/.local/share/swiftly/bin/swiftly install latest"
   changed_when: true
 
 # NPM global packages
