@@ -29,6 +29,7 @@ brew "yarn"
 brew "yt-dlp"
 brew "artginzburg/tap/sudo-touchid"
 brew "mas"
+brew "withgraphite/tap/graphite"
 
 cask "youtube-music"
 cask "zoom"
