@@ -17,7 +17,6 @@ return {
     },
     {
         "ray-x/go.nvim",
-        commit = "320f124",
         dependencies = { -- optional packages
             "ray-x/guihua.lua",
             "neovim/nvim-lspconfig",
@@ -72,6 +71,15 @@ return {
             local lsp_zero = require('lsp-zero')
             lsp_zero.extend_lspconfig()
 
+            -- Filter out "no package metadata" gopls messages
+            local original_notify = vim.notify
+            vim.notify = function(msg, level, opts)
+                if type(msg) == "string" and msg:find("no package metadata") then
+                    return
+                end
+                original_notify(msg, level, opts)
+            end
+
             local buffer_autoformat = function(bufnr)
                 local group = 'lsp_autoformat'
                 vim.api.nvim_create_augroup(group, { clear = false })
@@ -115,9 +123,6 @@ return {
                 lsp_zero.default_keymaps({ buffer = bufnr })
             end)
 
-            require('lspconfig').clangd.setup({
-
-            })
 
             vim.api.nvim_create_autocmd('LspAttach', {
                 callback = function(args)
@@ -140,12 +145,10 @@ return {
 
             require('mason-lspconfig').setup({
                 ensure_installed = {
-                    "clangd",
                     "bashls",
                     "cssls",
                     "dockerls",
                     "eslint",
-                    "gopls",
                     "golangci_lint_ls",
                     "jsonls",
                     "html",
@@ -161,12 +164,8 @@ return {
                 },
                 handlers = {
                     lsp_zero.default_setup,
-                    gopls = function()
-
-                    end,
                     ts_ls = function()
-                        -- (Optional) Configure tsserver for neovim
-                        require('lspconfig').ts_ls.setup({
+                        vim.lsp.config('ts_ls', {
                             settings = {
                                 typescript = {
                                     inlayHints = {
@@ -198,9 +197,10 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('ts_ls')
                     end,
                     basedpyright = function()
-                        require('lspconfig').pyright.setup({
+                        vim.lsp.config('pyright', {
                             settings = {
                                 python = {
                                     analysis = {
@@ -213,9 +213,10 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('pyright')
                     end,
                     rust_analyzer = function()
-                        require('lspconfig').rust_analyzer.setup({
+                        vim.lsp.config('rust_analyzer', {
                             settings = {
                                 ['rust-analyzer'] = {
                                     checkOnSave = {
@@ -255,10 +256,11 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('rust_analyzer')
                     end,
 
                     lua_ls = function()
-                        require('lspconfig').lua_ls.setup({
+                        vim.lsp.config('lua_ls', {
                             settings = {
                                 Lua = {
                                     diagnostics = {
@@ -267,10 +269,11 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('lua_ls')
                     end,
 
                     yamlls = function()
-                        require('lspconfig').yamlls.setup({
+                        vim.lsp.config('yamlls', {
                             settings = {
                                 yaml = {
                                     schemas = {
@@ -280,6 +283,7 @@ return {
                                 }
                             }
                         })
+                        vim.lsp.enable('yamlls')
                     end
                 }
             })
@@ -292,29 +296,24 @@ return {
                 remap_commands = {
                     GoDoc = false,
                 },
-            }
-            local cfg = require 'go.lsp'.config() -- config() return the go.nvim gopls setup
-
-            cfg.settings = cfg.settings or {}
-            cfg.settings.gopls = cfg.settings.gopls or {}
-
-            cfg.settings.gopls.diagnosticsDelay = "1s"
-            cfg.settings.gopls.diagnosticsTrigger = "Edit"
-            cfg.settings.gopls.usePlaceholders = false
-            --cfg.settings.gopls["ui.semanticTokens"] = true
-            --cfg.settings.gopls.semanticTokens = true
-            --            cfg.settings.gopls["ui.semanticTokenModifiers"] = cfg.settings.gopls.semananticTokenModifiers
-            --cfg.settings.gopls["ui.semanticTokenTypes"] = cfg.settings.gopls.semananticTokenTypes
-            --cfg.settings.gopls.semanticTokenModifiers = nil
-            --cfg.settings.gopls.semanticTokenTypes = nil
-
-            cfg.capabilities = cfg.capabilities or {}
-            cfg.capabilities.workspace = {
-                didChangeWatchedFiles = {
-                    dynamicRegistration = true,
+                lsp_cfg = {
+                    settings = {
+                        gopls = {
+                            diagnosticsDelay = "1s",
+                            diagnosticsTrigger = "Edit",
+                            usePlaceholders = false,
+                            semanticTokens = true,
+                        }
+                    },
+                    capabilities = {
+                        workspace = {
+                            didChangeWatchedFiles = {
+                                dynamicRegistration = true,
+                            },
+                        },
+                    },
                 },
             }
-            require('lspconfig').gopls.setup(cfg)
 
             local format_sync_grp = vim.api.nvim_create_augroup("GoFormat", {})
             vim.api.nvim_create_autocmd("BufWritePre", {
@@ -342,7 +341,7 @@ return {
             })
 
 
-            require('lspconfig').sourcekit.setup({
+            vim.lsp.config('sourcekit', {
                 cmd = { '/Library/Developer/CommandLineTools/usr/bin/sourcekit-lsp' },
                 capabilities = {
                     workspace = {
@@ -352,6 +351,7 @@ return {
                     },
                 },
             })
+            vim.lsp.enable('sourcekit')
         end
     }
 }
