@@ -120,14 +120,15 @@
   when: not mise_installed.stat.exists
   changed_when: true
 
-# Kubernetes tools (via mise)
-- name: Install K8s tools via mise
+# Dev tools (via mise)
+- name: Install tools via mise
   ansible.builtin.command:
     cmd: "{{ ansible_env.HOME }}/.local/bin/mise use -g {{ item }}"
   loop:
     - kind
     - stern
     - skaffold
+    - golangci-lint
   changed_when: true
 
 # Rustup

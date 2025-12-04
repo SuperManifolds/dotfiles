@@ -12,6 +12,14 @@
   become: false
   when: install_desktop | default(true)
 
+# Dev tools (via mise)
+- name: Install tools via mise
+  ansible.builtin.command:
+    cmd: mise use -g {{ item }}
+  loop:
+    - golangci-lint
+  changed_when: true
+
 # Install Rust stable toolchain
 - name: Install Rust stable toolchain
   ansible.builtin.command:

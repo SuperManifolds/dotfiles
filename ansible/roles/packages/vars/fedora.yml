@@ -43,4 +43,3 @@ npm_packages:
 
 go_packages:
   - github.com/segmentio/golines@latest
-  - github.com/golangci/golangci-lint/cmd/golangci-lint@latest
