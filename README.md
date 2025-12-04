@@ -102,9 +102,29 @@ gpg --list-secret-keys --keyid-format=long  # Find your key ID
 git config --global user.signingkey <YOUR_KEY_ID>
 ```
 
-If you don't have a GPG key, create one:
+**Create a new GPG key:**
 ```bash
 gpg --full-generate-key  # Choose RSA, 4096 bits
+```
+
+**Export your GPG key (for backup or transfer):**
+```bash
+# Export public key
+gpg --armor --export <YOUR_KEY_ID> > public.asc
+
+# Export private key (keep this safe!)
+gpg --armor --export-secret-keys <YOUR_KEY_ID> > private.asc
+```
+
+**Import a GPG key (on a new machine):**
+```bash
+# Import keys
+gpg --import public.asc
+gpg --import private.asc
+
+# Trust your own key
+gpg --edit-key <YOUR_KEY_ID>
+# Type: trust, 5 (ultimate), y, quit
 ```
 
 ### Optional
