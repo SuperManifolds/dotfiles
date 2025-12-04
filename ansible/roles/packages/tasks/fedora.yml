@@ -108,30 +108,27 @@
     state: present
   become: true
 
-# Kubernetes tools (binary installs)
-- name: Install kind
-  ansible.builtin.get_url:
-    url: "https://kind.sigs.k8s.io/dl/latest/kind-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
-    dest: /usr/local/bin/kind
-    mode: '0755'
-  become: true
+# mise (tool version manager)
+- name: Check if mise is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/bin/mise"
+  register: mise_installed
 
-- name: Install stern
-  ansible.builtin.unarchive:
-    src: "https://github.com/stern/stern/releases/latest/download/stern_{{ ansible_system | lower }}_{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}.tar.gz"
-    dest: /usr/local/bin
-    remote_src: true
-    include:
-      - stern
-    mode: '0755'
-  become: true
+- name: Install mise
+  ansible.builtin.shell:
+    cmd: curl https://mise.run | sh
+  when: not mise_installed.stat.exists
+  changed_when: true
 
-- name: Install skaffold
-  ansible.builtin.get_url:
-    url: "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
-    dest: /usr/local/bin/skaffold
-    mode: '0755'
-  become: true
+# Kubernetes tools (via mise)
+- name: Install K8s tools via mise
+  ansible.builtin.command:
+    cmd: "{{ ansible_env.HOME }}/.local/bin/mise use -g {{ item }}"
+  loop:
+    - kind
+    - stern
+    - skaffold
+  changed_when: true
 
 # Rustup
 - name: Check if rustup is installed

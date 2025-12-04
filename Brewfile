@@ -34,6 +34,7 @@ brew "withgraphite/tap/graphite"
 # Core dev tools
 brew "go"
 brew "coreutils"
+brew "mise"
 brew "pipx"
 brew "rustup"
 
