@@ -1,6 +1,13 @@
 ---
-- name: Install Homebrew packages from Brewfile
+- name: Install Homebrew CLI packages from Brewfile
   community.general.homebrew_bundle:
     file: "{{ playbook_dir }}/../Brewfile"
     state: present
   become: false
+
+- name: Install Homebrew desktop packages from Brewfile.desktop
+  community.general.homebrew_bundle:
+    file: "{{ playbook_dir }}/../Brewfile.desktop"
+    state: present
+  become: false
+  when: install_desktop | default(true)
