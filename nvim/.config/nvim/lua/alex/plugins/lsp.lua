@@ -216,25 +216,43 @@ return {
                     end,
                     rust_analyzer = function()
                         require('lspconfig').rust_analyzer.setup({
-                            checkOnSave = {
-                                command = "clippy"
-                            },
-                            inlayHints = {
-                                bindingModeHints = { enable = true },
-                                chainingHints = { enable = true },
-                                closingBraceHints = { enable = true },
-                                closureCaptureTypeHints = { enable = true },
-                                closureReturnTypeHints = { enable = true },
-                                discriminantHints = { enable = true },
-                                expressionAdjustmentHints = { enable = true },
-                                implicitDropsHints = { enable = true },
-                                lifetimeElisionHints = { enable = true },
-                                parameterHints = { enable = true },
-                                rangeExclusionHints = { enable = true },
-                                typeHints = { enable = true },
-                            },
-                            typing = {
-                                autoClosingAngleBrackets = { enable = true }
+                            settings = {
+                                ['rust-analyzer'] = {
+                                    checkOnSave = {
+                                        command = "clippy"
+                                    },
+                                    imports = {
+                                        granularity = {
+                                            group = "module",
+                                        },
+                                        prefix = "self",
+                                    },
+                                    cargo = {
+                                        buildScripts = {
+                                            enable = true,
+                                        },
+                                    },
+                                    procMacro = {
+                                        enable = true
+                                    },
+                                    inlayHints = {
+                                        bindingModeHints = { enable = true },
+                                        chainingHints = { enable = true },
+                                        closingBraceHints = { enable = true },
+                                        closureCaptureHints = { enable = true },
+                                        closureReturnTypeHints = { enable = "always" },
+                                        discriminantHints = { enable = "always" },
+                                        expressionAdjustmentHints = { enable = "always" },
+                                        implicitDrops = { enable = true },
+                                        lifetimeElisionHints = { enable = "always" },
+                                        parameterHints = { enable = true },
+                                        rangeExclusiveHints = { enable = true },
+                                        typeHints = { enable = true },
+                                    },
+                                    typing = {
+                                        autoClosingAngleBrackets = { enable = true }
+                                    }
+                                }
                             }
                         })
                     end,
