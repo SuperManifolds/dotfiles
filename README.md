@@ -49,7 +49,7 @@ See `Brewfile` for macOS packages and `ansible/roles/packages/vars/fedora.yml` f
 
 | Directory | Description |
 |-----------|-------------|
-| `git/` | Git configuration |
+| `git/` | Git configuration (GPG signing, signoff, sensible defaults) |
 | `nvim/` | Neovim configuration |
 | `tmux/` | Tmux configuration |
 | `ghostty/` | Ghostty terminal configuration |
@@ -88,15 +88,29 @@ After running `setup.sh`:
 1. **Restart your shell** or log out/in for zsh and PATH changes to take effect
 2. **Install tmux plugins**: Open tmux and press `<prefix>` + `I` to install plugins via TPM
 
+### Git Setup
+
+The git config has GPG signing and signoff enabled. Configure your identity and signing key:
+
+```bash
+# Set your identity
+git config --global user.name "Your Name"
+git config --global user.email "your@email.com"
+
+# Set your GPG signing key
+gpg --list-secret-keys --keyid-format=long  # Find your key ID
+git config --global user.signingkey <YOUR_KEY_ID>
+```
+
+If you don't have a GPG key, create one:
+```bash
+gpg --full-generate-key  # Choose RSA, 4096 bits
+```
+
 ### Optional
 
-3. **Configure Git** with your name and email if not already set:
-   ```bash
-   git config --global user.name "Your Name"
-   git config --global user.email "your@email.com"
-   ```
-4. **Install Neovim plugins** by opening Neovim (lazy.nvim should auto-install on first launch)
-5. **Log into apps** like 1Password, Raycast, etc.
+3. **Install Neovim plugins** by opening Neovim (lazy.nvim should auto-install on first launch)
+4. **Log into apps** like 1Password, Raycast, etc.
 
 ## Updating
 
