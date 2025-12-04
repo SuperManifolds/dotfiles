@@ -147,6 +147,23 @@
     cmd: "{{ ansible_env.HOME }}/.cargo/bin/rustup default stable"
   changed_when: true
 
+# Swiftly (Swift version manager)
+- name: Check if swiftly is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/bin/swiftly"
+  register: swiftly_installed
+
+- name: Install swiftly
+  ansible.builtin.shell:
+    cmd: curl -L https://swiftlang.github.io/swiftly/swiftly-install.sh | bash -s -- -y
+  when: not swiftly_installed.stat.exists
+  changed_when: true
+
+- name: Install Swift latest
+  ansible.builtin.command:
+    cmd: "{{ ansible_env.HOME }}/.local/bin/swiftly install latest"
+  changed_when: true
+
 # NPM global packages
 - name: Install global NPM packages
   community.general.npm:

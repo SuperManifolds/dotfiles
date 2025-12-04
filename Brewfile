@@ -37,6 +37,7 @@ brew "coreutils"
 brew "mise"
 brew "pipx"
 brew "rustup"
+brew "swiftly"
 
 # Kubernetes
 brew "helm"
