@@ -80,23 +80,6 @@
     enabled: true
   become: true
 
-# Mullvad VPN repository
-- name: Add Mullvad GPG key
-  ansible.builtin.rpm_key:
-    key: https://repository.mullvad.net/rpm/mullvad-keyring.asc
-    state: present
-  become: true
-
-- name: Add Mullvad repository
-  ansible.builtin.yum_repository:
-    name: mullvad
-    description: Mullvad VPN
-    baseurl: https://repository.mullvad.net/rpm/stable/$basearch
-    gpgcheck: true
-    gpgkey: https://repository.mullvad.net/rpm/mullvad-keyring.asc
-    enabled: true
-  become: true
-
 # Install DNF packages
 - name: Install DNF packages
   ansible.builtin.dnf:
@@ -142,12 +125,6 @@
 - name: Install Vault
   ansible.builtin.dnf:
     name: vault
-    state: present
-  become: true
-
-- name: Install Mullvad VPN
-  ansible.builtin.dnf:
-    name: mullvad-vpn
     state: present
   become: true
 
@@ -222,26 +199,3 @@
   loop: "{{ go_packages }}"
   changed_when: true
 
-# JetBrains Mono Nerd Font
-- name: Create fonts directory
-  ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/share/fonts"
-    state: directory
-    mode: '0755'
-
-- name: Check if JetBrains Mono Nerd Font is installed
-  ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.local/share/fonts/JetBrainsMonoNerdFont-Regular.ttf"
-  register: jetbrains_font
-
-- name: Download JetBrains Mono Nerd Font
-  ansible.builtin.unarchive:
-    src: "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
-    dest: "{{ ansible_env.HOME }}/.local/share/fonts"
-    remote_src: true
-  when: not jetbrains_font.stat.exists
-
-- name: Refresh font cache
-  ansible.builtin.command: fc-cache -fv
-  when: not jetbrains_font.stat.exists
-  changed_when: true

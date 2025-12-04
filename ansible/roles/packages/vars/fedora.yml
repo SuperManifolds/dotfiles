@@ -23,7 +23,20 @@ dnf_packages:
   - helm
   - git-filter-repo
   - unar
+
+dnf_desktop_packages:
   - imhex
+  - geary
+  - celluloid
+  - weechat
+
+flatpak_apps:
+  - io.github.zen_browser.zen
+  - it.mijorus.smile
+  - rest.insomnia.Insomnia
+  - com.usebottles.bottles
+  - org.kde.audiotube
+  - tv.plex.PlexDesktop
 
 npm_packages:
   - yarn

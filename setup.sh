@@ -2,6 +2,20 @@
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HEADLESS=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --headless)
+            HEADLESS=true
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 echo "==> Detecting operating system..."
 
@@ -57,10 +71,16 @@ run_ansible() {
     echo "==> Running Ansible playbook..."
     cd "$DOTFILES_DIR/ansible"
 
+    local extra_vars=""
+    if [[ "$HEADLESS" == "true" ]]; then
+        extra_vars="-e install_desktop=false"
+        echo "    Headless mode: skipping desktop/GUI packages"
+    fi
+
     if [[ "$OS" == "macos" ]]; then
-        ansible-playbook -i inventory.yml playbook.yml
+        ansible-playbook -i inventory.yml playbook.yml $extra_vars
     else
-        ansible-playbook -i inventory.yml playbook.yml --ask-become-pass
+        ansible-playbook -i inventory.yml playbook.yml $extra_vars --ask-become-pass
     fi
 }
 

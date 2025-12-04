@@ -15,6 +15,16 @@ The setup script will:
 2. Install prerequisites (Homebrew on macOS, Ansible)
 3. Run the Ansible playbook to install packages and symlink dotfiles
 
+### Headless Install (Fedora)
+
+For servers or headless systems without a GUI:
+
+```bash
+./setup.sh --headless
+```
+
+This skips desktop-specific packages like Mullvad VPN, imhex, and fonts.
+
 ## What's Included
 
 ### Packages

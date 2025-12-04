@@ -6,3 +6,9 @@
 - name: Include Fedora tasks
   ansible.builtin.include_tasks: fedora.yml
   when: ansible_distribution == "Fedora"
+
+- name: Include Fedora desktop tasks
+  ansible.builtin.include_tasks: fedora-desktop.yml
+  when:
+    - ansible_distribution == "Fedora"
+    - install_desktop | default(true)

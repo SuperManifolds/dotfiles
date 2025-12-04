@@ -1,0 +1,194 @@
+---
+# Desktop/GUI packages for Fedora (skipped with --headless)
+
+- name: Include Fedora variables
+  ansible.builtin.include_vars: fedora.yml
+
+# Ghostty COPR repository
+- name: Enable Ghostty COPR repository
+  community.general.copr:
+    name: "scottames/ghostty"
+    state: enabled
+  become: true
+
+- name: Install Ghostty
+  ansible.builtin.dnf:
+    name: ghostty
+    state: present
+  become: true
+
+# 1Password repository
+- name: Add 1Password GPG key
+  ansible.builtin.rpm_key:
+    key: https://downloads.1password.com/linux/keys/1password.asc
+    state: present
+  become: true
+
+- name: Add 1Password repository
+  ansible.builtin.yum_repository:
+    name: 1password
+    description: 1Password
+    baseurl: https://downloads.1password.com/linux/rpm/stable/$basearch
+    gpgcheck: true
+    gpgkey: https://downloads.1password.com/linux/keys/1password.asc
+    enabled: true
+  become: true
+
+- name: Install 1Password
+  ansible.builtin.dnf:
+    name: 1password
+    state: present
+  become: true
+
+# Mullvad VPN repository
+- name: Add Mullvad GPG key
+  ansible.builtin.rpm_key:
+    key: https://repository.mullvad.net/rpm/mullvad-keyring.asc
+    state: present
+  become: true
+
+- name: Add Mullvad repository
+  ansible.builtin.yum_repository:
+    name: mullvad
+    description: Mullvad VPN
+    baseurl: https://repository.mullvad.net/rpm/stable/$basearch
+    gpgcheck: true
+    gpgkey: https://repository.mullvad.net/rpm/mullvad-keyring.asc
+    enabled: true
+  become: true
+
+# Desktop DNF packages
+- name: Install DNF desktop packages
+  ansible.builtin.dnf:
+    name: "{{ dnf_desktop_packages }}"
+    state: present
+  become: true
+
+- name: Install Mullvad VPN
+  ansible.builtin.dnf:
+    name: mullvad-vpn
+    state: present
+  become: true
+
+# JetBrains Mono Nerd Font
+- name: Create fonts directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/fonts"
+    state: directory
+    mode: '0755'
+
+- name: Check if JetBrains Mono Nerd Font is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/share/fonts/JetBrainsMonoNerdFont-Regular.ttf"
+  register: jetbrains_font
+
+- name: Download JetBrains Mono Nerd Font
+  ansible.builtin.unarchive:
+    src: "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+    dest: "{{ ansible_env.HOME }}/.local/share/fonts"
+    remote_src: true
+  when: not jetbrains_font.stat.exists
+
+- name: Refresh font cache
+  ansible.builtin.command: fc-cache -fv
+  when: not jetbrains_font.stat.exists
+  changed_when: true
+
+# Flatpak setup
+- name: Install Flatpak
+  ansible.builtin.dnf:
+    name: flatpak
+    state: present
+  become: true
+
+- name: Add Flathub repository
+  community.general.flatpak_remote:
+    name: flathub
+    flatpakrepo_url: https://dl.flathub.org/repo/flathub.flatpakrepo
+    state: present
+
+- name: Install Flatpak applications
+  community.general.flatpak:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flatpak_apps }}"
+
+# kmonad keyboard remapper
+- name: Install kmonad
+  ansible.builtin.get_url:
+    url: "https://github.com/kmonad/kmonad/releases/latest/download/kmonad"
+    dest: /usr/local/bin/kmonad
+    mode: '0755'
+  become: true
+
+# Tiling Shell GNOME extension
+- name: Create GNOME extensions directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions"
+    state: directory
+    mode: '0755'
+
+- name: Check if Tiling Shell is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com"
+  register: tilingshell_installed
+
+- name: Create Tiling Shell extension directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com"
+    state: directory
+    mode: '0755'
+  when: not tilingshell_installed.stat.exists
+
+- name: Download Tiling Shell extension
+  ansible.builtin.unarchive:
+    src: "https://github.com/domferr/tilingshell/releases/latest/download/tilingshell@ferrarodomenico.com.shell-extension.zip"
+    dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com"
+    remote_src: true
+  when: not tilingshell_installed.stat.exists
+
+# AppImage applications directory
+- name: Create AppImages directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/Applications"
+    state: directory
+    mode: '0755'
+
+# Flare launcher (Raycast alternative)
+- name: Check if Flare is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/Applications/flare.AppImage"
+  register: flare_installed
+
+- name: Download Flare launcher
+  ansible.builtin.get_url:
+    url: "https://github.com/ByteAtATime/flare/releases/latest/download/flare.AppImage"
+    dest: "{{ ansible_env.HOME }}/Applications/flare.AppImage"
+    mode: '0755'
+  when: not flare_installed.stat.exists
+
+# Morgen calendar
+- name: Check if Morgen is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/Applications/Morgen.AppImage"
+  register: morgen_installed
+
+- name: Download Morgen calendar
+  ansible.builtin.get_url:
+    url: "https://download.todesktop.com/210203cqcj00tw1/Morgen-3.7.12.AppImage"
+    dest: "{{ ansible_env.HOME }}/Applications/Morgen.AppImage"
+    mode: '0755'
+  when: not morgen_installed.stat.exists
+
+# Parsify calculator
+- name: Check if Parsify is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/Applications/Parsify.AppImage"
+  register: parsify_installed
+
+- name: Download Parsify calculator
+  ansible.builtin.get_url:
+    url: "https://github.com/parsify-dev/desktop/releases/latest/download/Parsify-linux-x86_64.AppImage"
+    dest: "{{ ansible_env.HOME }}/Applications/Parsify.AppImage"
+    mode: '0755'
+  when: not parsify_installed.stat.exists
