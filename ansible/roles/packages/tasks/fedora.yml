@@ -49,12 +49,18 @@
     enabled: true
   become: true
 
-# pyenv COPR
-- name: Enable pyenv COPR repository
-  ansible.builtin.command:
-    cmd: dnf copr enable -y @pyenv/pyenv
-    creates: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:group_pyenv:pyenv.repo
-  become: true
+# pyenv (via git, standard installation)
+- name: Check if pyenv is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.pyenv"
+  register: pyenv_installed
+
+- name: Install pyenv
+  ansible.builtin.git:
+    repo: https://github.com/pyenv/pyenv.git
+    dest: "{{ ansible_env.HOME }}/.pyenv"
+    depth: 1
+  when: not pyenv_installed.stat.exists
 
 # Neovim COPR (latest stable)
 - name: Enable Neovim COPR repository
@@ -107,12 +113,6 @@
 - name: Install OpenTofu
   ansible.builtin.dnf:
     name: tofu
-    state: present
-  become: true
-
-- name: Install pyenv
-  ansible.builtin.dnf:
-    name: pyenv
     state: present
   become: true
 
