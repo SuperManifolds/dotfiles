@@ -5,13 +5,15 @@
 
 - name: Stow cross-platform dotfiles
   ansible.builtin.command:
-    cmd: "stow --restow --no-folding -d {{ dotfiles_dir }} -t {{ ansible_env.HOME }} {{ item }}"
+    cmd: "stow --restow --verbose --no-folding -d {{ dotfiles_dir }} -t {{ ansible_env.HOME }} {{ item }}"
   loop: "{{ stow_packages }}"
-  changed_when: true
+  register: stow_result
+  changed_when: "'LINK:' in stow_result.stderr or 'UNLINK:' in stow_result.stderr"
 
 - name: Stow macOS-only dotfiles
   ansible.builtin.command:
-    cmd: "stow --restow --no-folding -d {{ dotfiles_dir }} -t {{ ansible_env.HOME }} {{ item }}"
+    cmd: "stow --restow --verbose --no-folding -d {{ dotfiles_dir }} -t {{ ansible_env.HOME }} {{ item }}"
   loop: "{{ stow_packages_macos }}"
   when: ansible_os_family == "Darwin"
-  changed_when: true
+  register: stow_result_macos
+  changed_when: "'LINK:' in stow_result_macos.stderr or 'UNLINK:' in stow_result_macos.stderr"
