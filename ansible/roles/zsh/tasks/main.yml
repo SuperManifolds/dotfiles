@@ -85,3 +85,11 @@
     state: link
     force: true
   loop: "{{ prezto_runcoms }}"
+
+# Source custom aliases directory
+- name: Ensure .zsh_aliases directory is sourced in .zshrc
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.zshrc"
+    line: 'for f in ~/.zsh_aliases/*.zsh; do [[ -f "$f" ]] && source "$f"; done'
+    state: present
+    create: false
