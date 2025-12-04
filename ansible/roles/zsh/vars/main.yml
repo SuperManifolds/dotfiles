@@ -5,7 +5,7 @@ prezto_dest: "{{ ansible_env.HOME }}/.zprezto"
 prezto_runcoms:
   - zlogin
   - zlogout
-  - zpreztorc
+  # zpreztorc is managed via stow (zsh/.zpreztorc)
   - zprofile
   - zshenv
   - zshrc
