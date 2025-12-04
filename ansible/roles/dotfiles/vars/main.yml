@@ -1,0 +1,12 @@
+---
+# Dotfiles packages to stow (cross-platform)
+stow_packages:
+  - git
+  - nvim
+  - tmux
+  - ghostty
+  - zsh
+
+# macOS-only packages
+stow_packages_macos:
+  - karabiner

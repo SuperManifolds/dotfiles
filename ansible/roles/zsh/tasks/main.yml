@@ -1,0 +1,87 @@
+---
+# Get zsh path
+- name: Get zsh path
+  ansible.builtin.command: which zsh
+  register: zsh_path
+  changed_when: false
+
+# Check current shell
+- name: Check if zsh is default shell
+  ansible.builtin.shell: "dscl . -read /Users/{{ ansible_user_id }} UserShell | awk '{print $2}'"
+  register: current_shell
+  changed_when: false
+  when: ansible_os_family == "Darwin"
+
+- name: Check if zsh is default shell (Linux)
+  ansible.builtin.shell: "getent passwd {{ ansible_user_id }} | cut -d: -f7"
+  register: current_shell_linux
+  changed_when: false
+  when: ansible_os_family != "Darwin"
+
+# Set zsh as default shell
+- name: Set zsh as default shell (macOS)
+  ansible.builtin.command: "chsh -s {{ zsh_path.stdout }}"
+  when:
+    - ansible_os_family == "Darwin"
+    - current_shell.stdout != zsh_path.stdout
+
+- name: Set zsh as default shell (Linux)
+  ansible.builtin.user:
+    name: "{{ ansible_user_id }}"
+    shell: "{{ zsh_path.stdout }}"
+  become: true
+  when:
+    - ansible_os_family != "Darwin"
+    - current_shell_linux.stdout != zsh_path.stdout
+
+# Install Prezto
+- name: Check if Prezto is installed
+  ansible.builtin.stat:
+    path: "{{ prezto_dest }}"
+  register: prezto_installed
+
+- name: Clone Prezto
+  ansible.builtin.git:
+    repo: "{{ prezto_repo }}"
+    dest: "{{ prezto_dest }}"
+    recursive: true
+    depth: 1
+  when: not prezto_installed.stat.exists
+
+# Create Prezto runcom symlinks
+- name: Check for existing runcom files
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.{{ item }}"
+  loop: "{{ prezto_runcoms }}"
+  register: runcom_stats
+
+- name: Backup existing non-symlink runcoms
+  ansible.builtin.copy:
+    src: "{{ ansible_env.HOME }}/.{{ item.item }}"
+    dest: "{{ ansible_env.HOME }}/.{{ item.item }}.backup"
+    remote_src: true
+  loop: "{{ runcom_stats.results }}"
+  when:
+    - item.stat.exists
+    - not item.stat.islnk
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Remove existing non-symlink runcoms
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.{{ item.item }}"
+    state: absent
+  loop: "{{ runcom_stats.results }}"
+  when:
+    - item.stat.exists
+    - not item.stat.islnk
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create Prezto runcom symlinks
+  ansible.builtin.file:
+    src: "{{ prezto_dest }}/runcoms/{{ item }}"
+    dest: "{{ ansible_env.HOME }}/.{{ item }}"
+    state: link
+    force: true
+  loop: "{{ prezto_runcoms }}"

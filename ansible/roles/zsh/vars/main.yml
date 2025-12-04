@@ -1,0 +1,11 @@
+---
+prezto_repo: https://github.com/sorin-ionescu/prezto.git
+prezto_dest: "{{ ansible_env.HOME }}/.zprezto"
+
+prezto_runcoms:
+  - zlogin
+  - zlogout
+  - zpreztorc
+  - zprofile
+  - zshenv
+  - zshrc

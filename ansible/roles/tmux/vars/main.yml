@@ -1,0 +1,3 @@
+---
+tpm_repo: https://github.com/tmux-plugins/tpm.git
+tpm_dest: "{{ ansible_env.HOME }}/.config/tmux/plugins/tpm"

@@ -1,0 +1,17 @@
+---
+- name: Get dotfiles directory
+  ansible.builtin.set_fact:
+    dotfiles_dir: "{{ playbook_dir | dirname }}"
+
+- name: Stow cross-platform dotfiles
+  ansible.builtin.command:
+    cmd: "stow --restow --no-folding -d {{ dotfiles_dir }} -t {{ ansible_env.HOME }} {{ item }}"
+  loop: "{{ stow_packages }}"
+  changed_when: true
+
+- name: Stow macOS-only dotfiles
+  ansible.builtin.command:
+    cmd: "stow --restow --no-folding -d {{ dotfiles_dir }} -t {{ ansible_env.HOME }} {{ item }}"
+  loop: "{{ stow_packages_macos }}"
+  when: ansible_os_family == "Darwin"
+  changed_when: true

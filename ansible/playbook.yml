@@ -1,0 +1,11 @@
+---
+- name: Setup workstation
+  hosts: localhost
+  connection: local
+  become: false
+
+  roles:
+    - packages
+    - zsh
+    - tmux
+    - dotfiles

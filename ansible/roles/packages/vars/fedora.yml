@@ -1,0 +1,34 @@
+---
+dnf_packages:
+  - ansible
+  - awscli2
+  - ffmpeg-free
+  - gh
+  - gnupg2
+  - jq
+  - nmap-ncat
+  - nodejs
+  - npm
+  - p7zip
+  - ripgrep
+  - stow
+  - tmux
+  - zsh
+  - yt-dlp
+  - mariadb-server
+  - community-mysql-server
+  - golang
+  # New packages
+  - pipx
+  - helm
+  - git-filter-repo
+  - unar
+  - imhex
+
+npm_packages:
+  - yarn
+  - "@withgraphite/graphite-cli"
+
+go_packages:
+  - github.com/segmentio/golines@latest
+  - github.com/golangci/golangci-lint/cmd/golangci-lint@latest

@@ -1,0 +1,8 @@
+---
+- name: Include macOS tasks
+  ansible.builtin.include_tasks: macos.yml
+  when: ansible_os_family == "Darwin"
+
+- name: Include Fedora tasks
+  ansible.builtin.include_tasks: fedora.yml
+  when: ansible_distribution == "Fedora"

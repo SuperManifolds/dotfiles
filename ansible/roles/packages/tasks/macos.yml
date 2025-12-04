@@ -1,0 +1,6 @@
+---
+- name: Install Homebrew packages from Brewfile
+  community.general.homebrew_bundle:
+    file: "{{ playbook_dir }}/../Brewfile"
+    state: present
+  become: false

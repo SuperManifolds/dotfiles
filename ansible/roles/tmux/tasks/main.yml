@@ -1,0 +1,20 @@
+---
+# Ensure tmux plugins directory exists
+- name: Create tmux plugins directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/tmux/plugins"
+    state: directory
+    mode: '0755'
+
+# Install TPM
+- name: Check if TPM is installed
+  ansible.builtin.stat:
+    path: "{{ tpm_dest }}"
+  register: tpm_installed
+
+- name: Clone TPM
+  ansible.builtin.git:
+    repo: "{{ tpm_repo }}"
+    dest: "{{ tpm_dest }}"
+    depth: 1
+  when: not tpm_installed.stat.exists

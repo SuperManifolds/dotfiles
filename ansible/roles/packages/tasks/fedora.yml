@@ -1,0 +1,247 @@
+---
+- name: Include Fedora variables
+  ansible.builtin.include_vars: fedora.yml
+
+# RPM Fusion for full ffmpeg
+- name: Enable RPM Fusion Free repository
+  ansible.builtin.dnf:
+    name: "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+    state: present
+    disable_gpg_check: true
+  become: true
+
+# Docker CE repository
+- name: Add Docker CE repository
+  ansible.builtin.yum_repository:
+    name: docker-ce
+    description: Docker CE Stable
+    baseurl: https://download.docker.com/linux/fedora/$releasever/$basearch/stable
+    gpgcheck: true
+    gpgkey: https://download.docker.com/linux/fedora/gpg
+    enabled: true
+  become: true
+
+# Azure CLI repository
+- name: Import Microsoft GPG key
+  ansible.builtin.rpm_key:
+    key: https://packages.microsoft.com/keys/microsoft.asc
+    state: present
+  become: true
+
+- name: Add Azure CLI repository
+  ansible.builtin.yum_repository:
+    name: azure-cli
+    description: Azure CLI
+    baseurl: https://packages.microsoft.com/yumrepos/azure-cli
+    gpgcheck: true
+    gpgkey: https://packages.microsoft.com/keys/microsoft.asc
+    enabled: true
+  become: true
+
+# OpenTofu repository
+- name: Add OpenTofu repository
+  ansible.builtin.yum_repository:
+    name: opentofu
+    description: OpenTofu
+    baseurl: https://packages.opentofu.org/opentofu/tofu/rpm_any/rpm_any/$basearch
+    gpgcheck: true
+    gpgkey: https://get.opentofu.org/opentofu.gpg
+    enabled: true
+  become: true
+
+# pyenv COPR
+- name: Enable pyenv COPR repository
+  community.general.copr:
+    name: "@pyenv/pyenv"
+    state: enabled
+  become: true
+
+# Neovim COPR (latest stable)
+- name: Enable Neovim COPR repository
+  community.general.copr:
+    name: "agriffis/neovim-nightly"
+    state: enabled
+  become: true
+
+# HashiCorp repository (for vault)
+- name: Add HashiCorp GPG key
+  ansible.builtin.rpm_key:
+    key: https://rpm.releases.hashicorp.com/gpg
+    state: present
+  become: true
+
+- name: Add HashiCorp repository
+  ansible.builtin.yum_repository:
+    name: hashicorp
+    description: HashiCorp Stable
+    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/stable
+    gpgcheck: true
+    gpgkey: https://rpm.releases.hashicorp.com/gpg
+    enabled: true
+  become: true
+
+# Mullvad VPN repository
+- name: Add Mullvad GPG key
+  ansible.builtin.rpm_key:
+    key: https://repository.mullvad.net/rpm/mullvad-keyring.asc
+    state: present
+  become: true
+
+- name: Add Mullvad repository
+  ansible.builtin.yum_repository:
+    name: mullvad
+    description: Mullvad VPN
+    baseurl: https://repository.mullvad.net/rpm/stable/$basearch
+    gpgcheck: true
+    gpgkey: https://repository.mullvad.net/rpm/mullvad-keyring.asc
+    enabled: true
+  become: true
+
+# Install DNF packages
+- name: Install DNF packages
+  ansible.builtin.dnf:
+    name: "{{ dnf_packages }}"
+    state: present
+  become: true
+
+# Install packages from external repos
+- name: Install Docker CE
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+  become: true
+
+- name: Install Azure CLI
+  ansible.builtin.dnf:
+    name: azure-cli
+    state: present
+  become: true
+
+- name: Install OpenTofu
+  ansible.builtin.dnf:
+    name: tofu
+    state: present
+  become: true
+
+- name: Install pyenv
+  ansible.builtin.dnf:
+    name: pyenv
+    state: present
+  become: true
+
+- name: Install Neovim (from COPR)
+  ansible.builtin.dnf:
+    name: neovim
+    state: present
+  become: true
+
+- name: Install Vault
+  ansible.builtin.dnf:
+    name: vault
+    state: present
+  become: true
+
+- name: Install Mullvad VPN
+  ansible.builtin.dnf:
+    name: mullvad-vpn
+    state: present
+  become: true
+
+# Kubernetes tools (binary installs)
+- name: Install kind
+  ansible.builtin.get_url:
+    url: "https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64"
+    dest: /usr/local/bin/kind
+    mode: '0755'
+  become: true
+
+- name: Install stern
+  ansible.builtin.unarchive:
+    src: "https://github.com/stern/stern/releases/latest/download/stern_{{ ansible_system | lower }}_amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    include:
+      - stern
+    mode: '0755'
+  become: true
+
+- name: Install skaffold
+  ansible.builtin.get_url:
+    url: "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64"
+    dest: /usr/local/bin/skaffold
+    mode: '0755'
+  become: true
+
+# Rustup
+- name: Check if rustup is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+  register: rustup_installed
+
+- name: Install rustup
+  ansible.builtin.shell:
+    cmd: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  when: not rustup_installed.stat.exists
+  changed_when: true
+
+# Enable and start Docker
+- name: Enable and start Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+  become: true
+
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user_id }}"
+    groups: docker
+    append: true
+  become: true
+
+# NPM global packages
+- name: Install global NPM packages
+  community.general.npm:
+    name: "{{ item }}"
+    global: true
+    state: present
+  loop: "{{ npm_packages }}"
+  become: true
+
+# Go packages
+- name: Install Go packages
+  ansible.builtin.command:
+    cmd: "go install {{ item }}"
+  environment:
+    GOPATH: "{{ ansible_env.HOME }}/go"
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/go/bin"
+  loop: "{{ go_packages }}"
+  changed_when: true
+
+# JetBrains Mono Nerd Font
+- name: Create fonts directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/fonts"
+    state: directory
+    mode: '0755'
+
+- name: Check if JetBrains Mono Nerd Font is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/share/fonts/JetBrainsMonoNerdFont-Regular.ttf"
+  register: jetbrains_font
+
+- name: Download JetBrains Mono Nerd Font
+  ansible.builtin.unarchive:
+    src: "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+    dest: "{{ ansible_env.HOME }}/.local/share/fonts"
+    remote_src: true
+  when: not jetbrains_font.stat.exists
+
+- name: Refresh font cache
+  ansible.builtin.command: fc-cache -fv
+  when: not jetbrains_font.stat.exists
+  changed_when: true
