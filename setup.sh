@@ -71,16 +71,16 @@ run_ansible() {
     echo "==> Running Ansible playbook..."
     cd "$DOTFILES_DIR/ansible"
 
-    local extra_vars=""
+    local extra_vars=()
     if [[ "$HEADLESS" == "true" ]]; then
-        extra_vars="-e install_desktop=false"
+        extra_vars+=(-e '{"install_desktop": false}')
         echo "    Headless mode: skipping desktop/GUI packages"
     fi
 
     if [[ "$OS" == "macos" ]]; then
-        ansible-playbook -i inventory.yml playbook.yml $extra_vars
+        ansible-playbook -i inventory.yml playbook.yml "${extra_vars[@]}"
     else
-        ansible-playbook -i inventory.yml playbook.yml $extra_vars --ask-become-pass
+        ansible-playbook -i inventory.yml playbook.yml "${extra_vars[@]}" --ask-become-pass
     fi
 }
 
