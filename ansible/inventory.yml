@@ -3,4 +3,5 @@ all:
   hosts:
     localhost:
       ansible_connection: local
-      ansible_python_interpreter: "{{ ansible_playbook_python }}"
+      # Use system Python for dnf module access on Fedora
+      ansible_python_interpreter: /usr/bin/python3
