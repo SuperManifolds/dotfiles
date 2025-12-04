@@ -1,4 +1,5 @@
 tap "artginzburg/tap"
+tap "homebrew/cask-fonts"
 tap "homebrew/services"
 tap "th-ch/youtube-music"
 
@@ -31,6 +32,26 @@ brew "artginzburg/tap/sudo-touchid"
 brew "mas"
 brew "withgraphite/tap/graphite"
 
+# Core dev tools
+brew "go"
+brew "coreutils"
+brew "pipx"
+brew "rustup"
+
+# Kubernetes
+brew "helm"
+brew "kind"
+brew "skaffold"
+brew "stern"
+
+# Git utilities
+brew "bfg"
+brew "git-filter-repo"
+
+# Other utilities
+brew "unar"
+brew "vault"
+
 cask "youtube-music"
 cask "zoom"
 cask "docker"
@@ -43,7 +64,6 @@ cask "chatgpt"
 cask "contexts"
 cask "craft"
 cask "discord"
-cask "docker"
 cask "fantastical"
 cask "ghostty"
 cask "google-earth-pro"
@@ -68,6 +88,22 @@ cask "tailscale"
 cask "textual"
 cask "utm"
 cask "whisky"
+
+# Dev tools
+cask "claude"
+cask "imhex"
+cask "orbstack"
+cask "keyclu"
+
+# Productivity
+cask "soulver"
+cask "macs-fan-control"
+
+# Networking
+cask "mullvad-vpn"
+
+# Fonts
+cask "font-jetbrains-mono-nerd-font"
 
 mas "Dark Noise", id: 1465439395
 mas "Rules", id: 6461118886
