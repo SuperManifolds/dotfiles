@@ -142,6 +142,11 @@
   when: not rustup_installed.stat.exists
   changed_when: true
 
+- name: Install Rust stable toolchain
+  ansible.builtin.command:
+    cmd: "{{ ansible_env.HOME }}/.cargo/bin/rustup default stable"
+  changed_when: true
+
 # NPM global packages
 - name: Install global NPM packages
   community.general.npm:
