@@ -1,8 +1,13 @@
 return { {
     "coder/claudecode.nvim",
     dependencies = { "folke/snacks.nvim" },
+    cmd = { "ClaudeCode", "ClaudeCodeFocus", "ClaudeCodeSend", "ClaudeCodeAdd", "ClaudeCodeDiffAccept", "ClaudeCodeDiffDeny", "ClaudeCodeSelectModel" },
     config = function()
-        require("claudecode").setup({})
+        require("claudecode").setup({
+            diff_opts = {
+                auto_close_on_accept = true,
+            },
+        })
 
         vim.api.nvim_create_autocmd("TermOpen", {
             pattern = "*",
