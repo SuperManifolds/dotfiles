@@ -74,7 +74,7 @@ return {
             -- Filter out "no package metadata" gopls messages
             local original_notify = vim.notify
             vim.notify = function(msg, level, opts)
-                if type(msg) == "string" and msg:find("no package metadata") then
+                if type(msg) == "string" and (msg:find("no package metadata") or msg:find("inotify")) then
                     return
                 end
                 original_notify(msg, level, opts)
@@ -272,6 +272,7 @@ return {
                             diagnosticsTrigger = "Edit",
                             usePlaceholders = false,
                             semanticTokens = true,
+                            directoryFilters = { "-vendor" },
                         }
                     },
                     capabilities = {
