@@ -6,6 +6,7 @@ stow_packages:
   - tmux
   - ghostty
   - zsh
+  - claude
 
 # macOS-only packages
 stow_packages_macos:

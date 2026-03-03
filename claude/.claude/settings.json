@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git log*)",
+      "Bash(kind get*)",
+      "Bash(kubectl get*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(docker ps*)",
+      "Bash(tail*)",
+      "Bash(docker exec*)",
+      "Bash(curl*)",
+      "Bash(kubectl describe*)",
+      "Bash(ls*)",
+      "Bash(gh pr*)",
+      "Bash(wc*)",
+      "Read",
+      "Bash(cd*)"
+    ]
+  },
+  "enabledPlugins": {
+    "clangd-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "env": {
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
+  },
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "medium"
+}
