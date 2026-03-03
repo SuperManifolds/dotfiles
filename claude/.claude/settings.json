@@ -15,7 +15,9 @@
       "Bash(gh pr*)",
       "Bash(wc*)",
       "Read",
-      "Bash(cd*)"
+      "Bash(cd*)",
+      "Bash(gh run view*)",
+      "Bash(gh run list*)"
     ]
   },
   "enabledPlugins": {
@@ -25,6 +27,10 @@
   },
   "env": {
     "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium"
