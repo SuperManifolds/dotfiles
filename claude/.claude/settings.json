@@ -1,4 +1,9 @@
 {
+  "env": {},
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "permissions": {
     "allow": [
       "Bash(git log*)",
@@ -17,7 +22,18 @@
       "Read",
       "Bash(cd*)",
       "Bash(gh run view*)",
-      "Bash(gh run list*)"
+      "Bash(gh run list*)",
+      "Bash(gh api*)",
+      "Bash(find*)",
+      "mcp__claude_ai_Linear__get_issue",
+      "Bash(kubectl logs*)",
+      "Bash(gh api:*)",
+      "mcp__claude_ai_Linear__list_issues",
+      "mcp__claude_ai_Linear__get_user",
+      "mcp__slite__search-notes",
+      "mcp__slite__get-note-children",
+      "mcp__slite__get-note",
+      "mcp__slack__slack_read_channel"
     ]
   },
   "enabledPlugins": {
@@ -25,13 +41,6 @@
     "gopls-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true
   },
-  "env": {
-    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
-  },
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "medium"
+  "model": "opus"
 }

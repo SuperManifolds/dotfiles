@@ -1,0 +1,1 @@
+../../../dotfiles/claude/.claude/skills/weekly-report/SKILL.md
