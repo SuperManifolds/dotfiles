@@ -51,6 +51,7 @@ pacman_desktop_packages:
   - fuse2
   - gamemode
   - gamescope
+  - lib32-gamemode
   - gdm-settings
   - geary
   - ghostty
