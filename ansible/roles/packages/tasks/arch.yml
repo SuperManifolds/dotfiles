@@ -75,6 +75,22 @@
   loop: "{{ go_packages }}"
   changed_when: true
 
+# Enable mDNS (.local) name resolution so avahi-discovered hosts (SMB shares,
+# Macs advertising Bonjour, etc.) can be addressed by .local hostname.
+- name: Enable mdns_minimal in /etc/nsswitch.conf
+  ansible.builtin.replace:
+    path: /etc/nsswitch.conf
+    regexp: '^(hosts:\s+(?:(?!mdns_minimal).)*?)\bresolve\b'
+    replace: '\1mdns_minimal [NOTFOUND=return] resolve'
+  become: true
+
+- name: Enable avahi-daemon
+  ansible.builtin.systemd:
+    name: avahi-daemon.service
+    enabled: true
+    state: started
+  become: true
+
 # Docker setup
 - name: Add user to docker group
   ansible.builtin.user:

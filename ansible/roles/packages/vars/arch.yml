@@ -2,6 +2,7 @@
 pacman_packages:
   - 7zip
   - ansible
+  - avahi
   - aws-cli-v2
   - azure-cli
   - bat
@@ -26,6 +27,7 @@ pacman_packages:
   - mise
   - neovim
   - nodejs
+  - nss-mdns
   - npm
   - openbsd-netcat
   - python-pipx
