@@ -36,6 +36,7 @@ pacman_packages:
   - stow
   - tmux
   - unarchiver
+  - xh
   - yt-dlp
   - zsh
 
