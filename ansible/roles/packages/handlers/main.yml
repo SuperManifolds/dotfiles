@@ -1,0 +1,6 @@
+---
+- name: Reload keyd
+  ansible.builtin.systemd:
+    name: keyd.service
+    state: restarted
+  become: true

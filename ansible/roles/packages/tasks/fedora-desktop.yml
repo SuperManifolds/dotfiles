@@ -154,19 +154,6 @@
     state: directory
     mode: '0755'
 
-# Flare launcher (Raycast alternative)
-- name: Check if Flare is installed
-  ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/Applications/flare.AppImage"
-  register: flare_installed
-
-- name: Download Flare launcher
-  ansible.builtin.get_url:
-    url: "https://github.com/ByteAtATime/flare/releases/latest/download/flare.AppImage"
-    dest: "{{ ansible_env.HOME }}/Applications/flare.AppImage"
-    mode: '0755'
-  when: not flare_installed.stat.exists
-
 # Morgen calendar
 - name: Check if Morgen is installed
   ansible.builtin.stat:
@@ -179,6 +166,19 @@
     dest: "{{ ansible_env.HOME }}/Applications/Morgen.AppImage"
     mode: '0755'
   when: not morgen_installed.stat.exists
+
+# Vicinae launcher (Raycast alternative)
+- name: Check if Vicinae is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/Applications/Vicinae.AppImage"
+  register: vicinae_installed
+
+- name: Download Vicinae launcher
+  ansible.builtin.get_url:
+    url: "https://github.com/vicinaehq/vicinae/releases/latest/download/Vicinae-x86_64.AppImage"
+    dest: "{{ ansible_env.HOME }}/Applications/Vicinae.AppImage"
+    mode: '0755'
+  when: not vicinae_installed.stat.exists
 
 # Parsify calculator
 - name: Check if Parsify is installed

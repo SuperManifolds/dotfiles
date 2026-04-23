@@ -1,0 +1,71 @@
+---
+pacman_packages:
+  - ansible
+  - aws-cli-v2
+  - azure-cli
+  - ffmpeg
+  - git
+  - git-filter-repo
+  - github-cli
+  - openbsd-netcat
+  - gnupg
+  - go
+  - helm
+  - jq
+  - keyd
+  - mariadb
+  - mise
+  - neovim
+  - nodejs
+  - npm
+  - 7zip
+  - python-pipx
+  - ripgrep
+  - rustup
+  - stow
+  - tmux
+  - unarchiver
+  - yt-dlp
+  - zsh
+  - docker
+  - docker-compose
+
+aur_packages:
+  - opentofu-bin
+  - swift-bin
+  - bfg
+
+pacman_desktop_packages:
+  - celluloid
+  - discord
+  - extension-manager
+  - flatpak
+  - fuse2
+  - geary
+  - ghostty
+  - nextcloud-client
+  - steam
+  - tailscale
+  - ttf-jetbrains-mono-nerd
+  - weechat
+  - zen-browser-bin
+
+aur_desktop_packages:
+  - 1password
+  - imhex-bin
+  - morgen-bin
+  - mullvad-vpn-bin
+  - parsify-desktop
+  - plex-desktop
+  - slack-desktop
+  - vicinae-bin
+
+flatpak_apps:
+  - it.mijorus.smile
+  - rest.insomnia.Insomnia
+  - com.usebottles.bottles
+
+npm_packages: []
+
+go_packages:
+  - github.com/segmentio/golines@latest

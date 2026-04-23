@@ -34,8 +34,8 @@ flatpak_apps:
   - it.mijorus.smile
   - rest.insomnia.Insomnia
   - com.usebottles.bottles
-  - org.kde.audiotube
   - tv.plex.PlexDesktop
+  - com.valvesoftware.Steam
 
 npm_packages:
   - yarn

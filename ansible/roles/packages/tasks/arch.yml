@@ -1,0 +1,100 @@
+---
+- name: Include Arch variables
+  ansible.builtin.include_vars: arch.yml
+
+# Install pacman packages (official repos)
+- name: Install pacman packages
+  community.general.pacman:
+    name: "{{ pacman_packages }}"
+    state: present
+  become: true
+
+# Passwordless sudo for the wheel group
+- name: Enable passwordless sudo for wheel group
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/10-nopasswd-wheel
+    content: "%wheel ALL=(ALL:ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: visudo -cf %s
+  become: true
+
+# Deploy keyd system config
+- name: Deploy keyd default config
+  ansible.builtin.copy:
+    src: keyd-default.conf
+    dest: /etc/keyd/default.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  notify: Reload keyd
+
+# Install AUR packages via paru
+- name: Install AUR packages
+  kewlfft.aur.aur:
+    use: paru
+    name: "{{ aur_packages }}"
+    state: present
+
+# Set Rust default toolchain
+- name: Install Rust stable toolchain
+  ansible.builtin.command:
+    cmd: rustup default stable
+  changed_when: true
+
+# Dev tools (via mise)
+- name: Install tools via mise
+  ansible.builtin.command:
+    cmd: "mise use -g {{ item }}"
+  loop:
+    - kind
+    - stern
+    - skaffold
+    - golangci-lint
+  changed_when: true
+
+# NPM global packages
+- name: Install global NPM packages
+  community.general.npm:
+    name: "{{ item }}"
+    global: true
+    state: present
+  loop: "{{ npm_packages }}"
+  become: true
+  when: npm_packages | length > 0
+
+# Go packages
+- name: Install Go packages
+  ansible.builtin.command:
+    cmd: "go install {{ item }}"
+  environment:
+    GOPATH: "{{ ansible_env.HOME }}/go"
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/go/bin"
+  loop: "{{ go_packages }}"
+  changed_when: true
+
+# Docker setup
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_env.USER }}"
+    groups: docker
+    append: true
+  become: true
+
+# keyd socket is owned root:keyd mode 660 — user needs keyd group for
+# keyd-application-mapper to connect to /var/run/keyd.socket
+- name: Add user to keyd group
+  ansible.builtin.user:
+    name: "{{ ansible_env.USER }}"
+    groups: keyd
+    append: true
+  become: true
+
+- name: Enable and start docker service
+  ansible.builtin.systemd:
+    name: docker.service
+    enabled: true
+    state: started
+  become: true

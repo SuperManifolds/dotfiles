@@ -1,0 +1,126 @@
+---
+# Desktop/GUI packages for Arch (skipped with --headless)
+
+- name: Include Arch variables
+  ansible.builtin.include_vars: arch.yml
+
+# Install pacman desktop packages
+- name: Install pacman desktop packages
+  community.general.pacman:
+    name: "{{ pacman_desktop_packages }}"
+    state: present
+  become: true
+
+# Install AUR desktop packages
+- name: Install AUR desktop packages
+  kewlfft.aur.aur:
+    use: paru
+    name: "{{ aur_desktop_packages }}"
+    state: present
+
+# Flatpak setup
+- name: Add Flathub repository
+  community.general.flatpak_remote:
+    name: flathub
+    flatpakrepo_url: https://dl.flathub.org/repo/flathub.flatpakrepo
+    state: present
+  become: true
+
+- name: Install Flatpak applications
+  community.general.flatpak:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flatpak_apps }}"
+
+# Enable Tailscale service
+- name: Enable and start tailscaled service
+  ansible.builtin.systemd:
+    name: tailscaled.service
+    enabled: true
+    state: started
+  become: true
+
+# Enable keyd service
+- name: Enable and start keyd service
+  ansible.builtin.systemd:
+    name: keyd.service
+    enabled: true
+    state: started
+  become: true
+
+# keyd GNOME extension (for per-app overrides on Wayland)
+- name: Create GNOME extensions directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions"
+    state: directory
+    mode: '0755'
+
+- name: Symlink keyd GNOME extension
+  ansible.builtin.file:
+    src: /usr/share/keyd/gnome-extension-45
+    dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/keyd@keyd.rvaiya.github.com"
+    state: link
+    force: true
+
+- name: Allow unsupported GNOME extension versions
+  community.general.dconf:
+    key: "/org/gnome/shell/disable-extension-version-validation"
+    value: "true"
+    state: present
+
+- name: Enable keyd GNOME extension
+  ansible.builtin.command:
+    cmd: gnome-extensions enable keyd@keyd.rvaiya.github.com
+  register: keyd_ext_enable
+  changed_when: keyd_ext_enable.rc == 0
+  failed_when:
+    - keyd_ext_enable.rc != 0
+    - "'does not exist' not in keyd_ext_enable.stderr"
+
+# Rebind input-source switch shortcut to the tap output of our keyd Caps/Fn overload
+- name: Bind input source switch to XF86Tools (keyd tap output)
+  community.general.dconf:
+    key: "/org/gnome/desktop/wm/keybindings/switch-input-source"
+    value: "['XF86Tools']"
+    state: present
+
+- name: Bind input source switch backward to Shift+XF86Tools
+  community.general.dconf:
+    key: "/org/gnome/desktop/wm/keybindings/switch-input-source-backward"
+    value: "['<Shift>XF86Tools']"
+    state: present
+
+# GNOME's default media-keys plugin grabs XF86Tools for "open Settings" — conflicts with our binding
+- name: Clear GNOME's default XF86Tools grab (control-center-static)
+  community.general.dconf:
+    key: "/org/gnome/settings-daemon/plugins/media-keys/control-center-static"
+    value: "@as []"
+    state: present
+
+# Free up Super+V (notifications tray uses Super+V and Super+M by default) — keep Super+M only
+- name: Free Super+V by dropping it from toggle-message-tray
+  community.general.dconf:
+    key: "/org/gnome/shell/keybindings/toggle-message-tray"
+    value: "['<Super>m']"
+    state: present
+
+# Tiling Shell GNOME extension
+- name: Check if Tiling Shell is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com"
+  register: tilingshell_installed
+
+- name: Create Tiling Shell extension directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com"
+    state: directory
+    mode: '0755'
+  when: not tilingshell_installed.stat.exists
+
+- name: Download Tiling Shell extension
+  ansible.builtin.unarchive:
+    src: "https://github.com/domferr/tilingshell/releases/latest/download/tilingshell@ferrarodomenico.com.shell-extension.zip"
+    dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com"
+    remote_src: true
+  when: not tilingshell_installed.stat.exists
+

@@ -25,6 +25,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 elif [[ -f /etc/fedora-release ]]; then
     OS="fedora"
     echo "    Detected: Fedora"
+elif [[ -f /etc/arch-release ]]; then
+    OS="arch"
+    echo "    Detected: Arch Linux"
 else
     echo "Error: Unsupported operating system"
     exit 1
@@ -67,6 +70,27 @@ install_fedora_deps() {
     fi
 }
 
+install_arch_deps() {
+    echo "==> Refreshing pacman databases..."
+    sudo pacman -Syy --noconfirm
+
+    # Install base-devel + git (required for AUR builds) and Ansible
+    if ! command -v ansible &>/dev/null; then
+        echo "==> Installing Ansible and build prerequisites..."
+        sudo pacman -S --needed --noconfirm base-devel git ansible
+    fi
+
+    # Install paru if not present (needed for AUR packages)
+    if ! command -v paru &>/dev/null; then
+        echo "==> Installing paru (AUR helper)..."
+        local tmpdir
+        tmpdir="$(mktemp -d)"
+        git clone https://aur.archlinux.org/paru-bin.git "$tmpdir/paru-bin"
+        (cd "$tmpdir/paru-bin" && makepkg -si --noconfirm)
+        rm -rf "$tmpdir"
+    fi
+}
+
 install_homebrew_packages() {
     echo "==> Installing Homebrew packages..."
     brew bundle --file="$DOTFILES_DIR/Brewfile"
@@ -79,6 +103,9 @@ install_homebrew_packages() {
 run_ansible() {
     echo "==> Installing Ansible collections..."
     ansible-galaxy collection install community.general --upgrade
+    if [[ "$OS" == "arch" ]]; then
+        ansible-galaxy collection install kewlfft.aur --upgrade
+    fi
 
     echo "==> Running Ansible playbook..."
     cd "$DOTFILES_DIR/ansible"
@@ -106,8 +133,10 @@ main() {
     if [[ "$OS" == "macos" ]]; then
         install_macos_deps
         install_homebrew_packages
-    else
+    elif [[ "$OS" == "fedora" ]]; then
         install_fedora_deps
+    else
+        install_arch_deps
     fi
 
     run_ansible

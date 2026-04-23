@@ -12,3 +12,13 @@
   when:
     - ansible_distribution == "Fedora"
     - install_desktop | default(true)
+
+- name: Include Arch tasks
+  ansible.builtin.include_tasks: arch.yml
+  when: ansible_os_family == "Archlinux"
+
+- name: Include Arch desktop tasks
+  ansible.builtin.include_tasks: arch-desktop.yml
+  when:
+    - ansible_os_family == "Archlinux"
+    - install_desktop | default(true)

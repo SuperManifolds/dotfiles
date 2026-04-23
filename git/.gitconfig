@@ -3,9 +3,7 @@
 # Please adapt and uncomment the following lines:
 	name = Alex Sørlie
 	email = alex@sorlie.io
-	signingkey = D23040C91A622DEB
 [commit]
-	gpgsign = true
 	verbose = true
 [column]
 	ui = auto

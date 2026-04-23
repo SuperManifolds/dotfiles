@@ -11,3 +11,7 @@ stow_packages:
 # macOS-only packages
 stow_packages_macos:
   - karabiner
+
+# Linux-only packages
+stow_packages_linux:
+  - keyd
