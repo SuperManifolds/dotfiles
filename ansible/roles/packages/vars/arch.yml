@@ -62,6 +62,7 @@ pacman_desktop_packages:
   - librepods
   - nextcloud-client
   - protontricks
+  - qgis
   - steam
   - tailscale
   - ttf-jetbrains-mono-nerd
