@@ -48,6 +48,21 @@
     state: started
   become: true
 
+# UFW firewall rule for KDE Connect / GSConnect (port range 1714:1764 TCP+UDP).
+# CachyOS enables UFW by default and its default-deny INPUT otherwise blocks
+# device discovery and pairing.
+- name: Check if ufw is installed
+  ansible.builtin.stat:
+    path: /usr/bin/ufw
+  register: ufw_installed
+
+- name: Allow KDE Connect through UFW
+  community.general.ufw:
+    rule: allow
+    name: KDE Connect
+  become: true
+  when: ufw_installed.stat.exists
+
 # keyd GNOME extension (for per-app overrides on Wayland)
 - name: Create GNOME extensions directory
   ansible.builtin.file:
