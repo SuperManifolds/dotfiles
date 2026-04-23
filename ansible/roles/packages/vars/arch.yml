@@ -49,11 +49,14 @@ pacman_desktop_packages:
   - firefoxpwa
   - flatpak
   - fuse2
+  - gamemode
+  - gamescope
   - gdm-settings
   - geary
   - ghostty
   - librepods
   - nextcloud-client
+  - protontricks
   - steam
   - tailscale
   - ttf-jetbrains-mono-nerd
