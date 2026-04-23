@@ -39,11 +39,13 @@ pacman_desktop_packages:
   - celluloid
   - discord
   - extension-manager
+  - firefoxpwa
   - flatpak
   - fuse2
   - gdm-settings
   - geary
   - ghostty
+  - librepods
   - nextcloud-client
   - steam
   - tailscale
