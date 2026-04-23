@@ -41,6 +41,7 @@ pacman_desktop_packages:
   - extension-manager
   - flatpak
   - fuse2
+  - gdm-settings
   - geary
   - ghostty
   - nextcloud-client
