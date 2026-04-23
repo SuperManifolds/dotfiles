@@ -53,6 +53,34 @@
     state: started
   become: true
 
+# OpenSnitch — per-app outbound firewall (Little Snitch equivalent)
+- name: Enable and start opensnitchd
+  ansible.builtin.systemd:
+    name: opensnitchd.service
+    enabled: true
+    state: started
+  become: true
+
+- name: Autostart OpenSnitch UI for current user
+  ansible.builtin.copy:
+    src: /usr/share/applications/opensnitch_ui.desktop
+    dest: "{{ ansible_env.HOME }}/.config/autostart/opensnitch_ui.desktop"
+    remote_src: true
+    mode: '0644'
+
+# Espanso — text expander. `service register` creates the systemd user unit once.
+- name: Register espanso as systemd user service
+  ansible.builtin.command:
+    cmd: espanso service register
+    creates: "{{ ansible_env.HOME }}/.config/systemd/user/espanso.service"
+
+- name: Enable and start espanso (user service)
+  ansible.builtin.systemd:
+    name: espanso.service
+    enabled: true
+    state: started
+    scope: user
+
 # UFW firewall rule for KDE Connect / GSConnect (port range 1714:1764 TCP+UDP).
 # CachyOS enables UFW by default and its default-deny INPUT otherwise blocks
 # device discovery and pairing.

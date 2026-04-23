@@ -1,24 +1,33 @@
 ---
 pacman_packages:
+  - 7zip
   - ansible
   - aws-cli-v2
   - azure-cli
+  - bat
+  - btop
+  - docker
+  - docker-compose
+  - dust
+  - eza
+  - fd
   - ffmpeg
   - git
+  - git-delta
   - git-filter-repo
   - github-cli
-  - openbsd-netcat
   - gnupg
   - go
   - helm
   - jq
+  - k9s
   - keyd
   - mariadb
   - mise
   - neovim
   - nodejs
   - npm
-  - 7zip
+  - openbsd-netcat
   - python-pipx
   - ripgrep
   - rustup
@@ -27,8 +36,6 @@ pacman_packages:
   - unarchiver
   - yt-dlp
   - zsh
-  - docker
-  - docker-compose
 
 aur_packages:
   - opentofu-bin
@@ -55,10 +62,12 @@ pacman_desktop_packages:
 
 aur_desktop_packages:
   - 1password
+  - espanso-wayland
   - gnome-shell-extension-gsconnect
   - imhex-bin
   - morgen-bin
   - mullvad-vpn-bin
+  - opensnitch
   - parsify-desktop
   - plex-desktop
   - slack-desktop
