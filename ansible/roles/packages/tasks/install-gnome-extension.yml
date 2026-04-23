@@ -28,3 +28,19 @@
     dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/{{ ext_uuid }}"
     remote_src: true
   when: not ext_stat.stat.exists
+
+- name: "Check for unompiled schemas in {{ ext_uuid }}"
+  ansible.builtin.find:
+    paths: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/{{ ext_uuid }}/schemas"
+    patterns: "*.gschema.xml"
+  register: ext_schemas
+  when: not ext_stat.stat.exists
+  failed_when: false
+
+- name: "Compile schemas for {{ ext_uuid }}"
+  ansible.builtin.command:
+    cmd: "glib-compile-schemas {{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/{{ ext_uuid }}/schemas"
+  when:
+    - not ext_stat.stat.exists
+    - ext_schemas.matched | default(0) > 0
+  changed_when: true

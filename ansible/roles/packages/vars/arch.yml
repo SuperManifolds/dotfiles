@@ -45,7 +45,6 @@ pacman_desktop_packages:
   - gdm-settings
   - geary
   - ghostty
-  - gnome-shell-extension-appindicator
   - librepods
   - nextcloud-client
   - steam
@@ -71,6 +70,8 @@ gnome_extensions:
   - { uuid: "copyous@boerdereinar.dev", pk: 8834 }
   - { uuid: "smile-extension@mijorus.it", pk: 6096 }
   - { uuid: "Bluetooth-Battery-Meter@maniacx.github.com", pk: 6670 }
+  # Status Tray = modern AppIndicator replacement with overflow menu (Bartender-like)
+  - { uuid: "status-tray@keithvassallo.com", pk: 9164 }
 
 flatpak_apps:
   - it.mijorus.smile
