@@ -4,3 +4,8 @@
     name: keyd.service
     state: restarted
   become: true
+
+- name: Rebuild initramfs
+  ansible.builtin.command:
+    cmd: mkinitcpio -P
+  become: true

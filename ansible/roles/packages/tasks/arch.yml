@@ -75,6 +75,38 @@
   loop: "{{ go_packages }}"
   changed_when: true
 
+# NVIDIA DPMS wake / monitor-not-turning-back-on mitigations. Only applies
+# if an NVIDIA GPU is present; safe to run repeatedly.
+- name: Detect NVIDIA GPU
+  ansible.builtin.shell: "lspci | grep -i 'VGA.*NVIDIA' || true"
+  register: nvidia_check
+  changed_when: false
+
+- name: Preserve NVIDIA video memory across suspend/DPMS
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/nvidia-power.conf
+    content: |
+      # Preserve video memory across sleep/DPMS to prevent monitor wake issues
+      options nvidia NVreg_PreserveVideoMemoryAllocations=1
+      options nvidia NVreg_TemporaryFilePath=/var/tmp
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  when: nvidia_check.stdout | length > 0
+  notify: Rebuild initramfs
+
+- name: Enable NVIDIA suspend/resume/hibernate services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+  loop:
+    - nvidia-suspend.service
+    - nvidia-resume.service
+    - nvidia-hibernate.service
+  become: true
+  when: nvidia_check.stdout | length > 0
+
 # Enable mDNS (.local) name resolution so avahi-discovered hosts (SMB shares,
 # Macs advertising Bonjour, etc.) can be addressed by .local hostname.
 - name: Enable mdns_minimal in /etc/nsswitch.conf
