@@ -55,6 +55,8 @@ pacman_desktop_packages:
   - gdm-settings
   - geary
   - ghostty
+  - gvfs-dnssd
+  - gvfs-goa
   - librepods
   - nextcloud-client
   - protontricks
