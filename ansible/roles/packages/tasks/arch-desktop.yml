@@ -23,6 +23,15 @@
     name: "{{ aur_desktop_packages }}"
     state: present
 
+# Google Earth Pro's .desktop launches via Qt and clashes with the session's
+# QT_QPA_PLATFORMTHEME/QT_QPA_PLATFORM on Wayland. Strip those before exec.
+- name: Patch Google Earth Pro .desktop for Wayland
+  ansible.builtin.lineinfile:
+    path: /usr/share/applications/google-earth-pro.desktop
+    regexp: '^Exec=.*/opt/google/earth/pro/google-earth-pro'
+    line: 'Exec=env -u QT_QPA_PLATFORMTHEME -u QT_QPA_PLATFORM /opt/google/earth/pro/google-earth-pro %f'
+  become: true
+
 # Flatpak setup
 - name: Add Flathub repository
   community.general.flatpak_remote:

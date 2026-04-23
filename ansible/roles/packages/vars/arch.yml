@@ -68,6 +68,7 @@ aur_desktop_packages:
   - 1password
   - espanso-wayland
   - gnome-shell-extension-gsconnect
+  - google-earth-pro
   - imhex-bin
   - morgen-bin
   - mullvad-vpn-bin
