@@ -154,15 +154,22 @@
     state: directory
     mode: '0755'
 
-# Morgen calendar
+# Morgen calendar (AppImage name includes version — parse latest-linux.yml for the URL)
 - name: Check if Morgen is installed
   ansible.builtin.stat:
     path: "{{ ansible_env.HOME }}/Applications/Morgen.AppImage"
   register: morgen_installed
 
+- name: Get latest Morgen release manifest
+  ansible.builtin.uri:
+    url: https://download.todesktop.com/210203cqcj00tw1/latest-linux.yml
+    return_content: true
+  register: morgen_manifest
+  when: not morgen_installed.stat.exists
+
 - name: Download Morgen calendar
   ansible.builtin.get_url:
-    url: "https://download.todesktop.com/210203cqcj00tw1/Morgen-3.7.12.AppImage"
+    url: "https://download.todesktop.com/210203cqcj00tw1/{{ (morgen_manifest.content | from_yaml).path }}"
     dest: "{{ ansible_env.HOME }}/Applications/Morgen.AppImage"
     mode: '0755'
   when: not morgen_installed.stat.exists
@@ -180,15 +187,22 @@
     mode: '0755'
   when: not vicinae_installed.stat.exists
 
-# Parsify calculator
+# Parsify calculator (asset name includes version — resolve via GitHub API)
 - name: Check if Parsify is installed
   ansible.builtin.stat:
     path: "{{ ansible_env.HOME }}/Applications/Parsify.AppImage"
   register: parsify_installed
 
+- name: Get latest Parsify release metadata
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/parsify-dev/desktop/releases/latest
+    return_content: true
+  register: parsify_release
+  when: not parsify_installed.stat.exists
+
 - name: Download Parsify calculator
   ansible.builtin.get_url:
-    url: "https://github.com/parsify-dev/desktop/releases/latest/download/Parsify-linux-x86_64.AppImage"
+    url: "{{ (parsify_release.json.assets | selectattr('name', 'match', '.*\\.AppImage$') | first).browser_download_url }}"
     dest: "{{ ansible_env.HOME }}/Applications/Parsify.AppImage"
     mode: '0755'
   when: not parsify_installed.stat.exists
