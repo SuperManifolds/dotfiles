@@ -1,0 +1,30 @@
+---
+# Installs a single GNOME extension from extensions.gnome.org.
+# Caller must set: ext_uuid, ext_pk
+# Requires: gnome_shell_major.stdout (registered at start of arch-desktop.yml)
+
+- name: "Check if {{ ext_uuid }} is installed"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/{{ ext_uuid }}"
+  register: ext_stat
+
+- name: "Get latest {{ ext_uuid }} metadata"
+  ansible.builtin.uri:
+    url: "https://extensions.gnome.org/extension-info/?pk={{ ext_pk }}&shell_version={{ gnome_shell_major.stdout }}"
+    return_content: true
+  register: ext_meta
+  when: not ext_stat.stat.exists
+
+- name: "Create directory for {{ ext_uuid }}"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/{{ ext_uuid }}"
+    state: directory
+    mode: '0755'
+  when: not ext_stat.stat.exists
+
+- name: "Download {{ ext_uuid }}"
+  ansible.builtin.unarchive:
+    src: "https://extensions.gnome.org{{ ext_meta.json.download_url }}"
+    dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/{{ ext_uuid }}"
+    remote_src: true
+  when: not ext_stat.stat.exists

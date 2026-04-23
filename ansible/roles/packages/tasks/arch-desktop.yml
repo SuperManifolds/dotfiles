@@ -4,6 +4,11 @@
 - name: Include Arch variables
   ansible.builtin.include_vars: arch.yml
 
+- name: Detect GNOME Shell major version
+  ansible.builtin.shell: "gnome-shell --version | awk '{print $3}' | cut -d. -f1"
+  register: gnome_shell_major
+  changed_when: false
+
 # Install pacman desktop packages
 - name: Install pacman desktop packages
   community.general.pacman:
@@ -138,4 +143,14 @@
     dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com"
     remote_src: true
   when: not tilingshell_installed.stat.exists
+
+# Install GNOME extensions from extensions.gnome.org (listed in vars/arch.yml)
+- name: Install GNOME extensions from extensions.gnome.org
+  ansible.builtin.include_tasks: install-gnome-extension.yml
+  loop: "{{ gnome_extensions }}"
+  loop_control:
+    label: "{{ item.uuid }}"
+  vars:
+    ext_uuid: "{{ item.uuid }}"
+    ext_pk: "{{ item.pk }}"
 

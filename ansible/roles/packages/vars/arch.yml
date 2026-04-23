@@ -45,6 +45,7 @@ pacman_desktop_packages:
   - gdm-settings
   - geary
   - ghostty
+  - gnome-shell-extension-appindicator
   - librepods
   - nextcloud-client
   - steam
@@ -55,6 +56,7 @@ pacman_desktop_packages:
 
 aur_desktop_packages:
   - 1password
+  - gnome-shell-extension-gsconnect
   - imhex-bin
   - morgen-bin
   - mullvad-vpn-bin
@@ -62,6 +64,13 @@ aur_desktop_packages:
   - plex-desktop
   - slack-desktop
   - vicinae-bin
+
+# GNOME extensions installed from extensions.gnome.org (disable-extension-version-validation
+# is set elsewhere, so these load even if they don't officially target our shell major).
+gnome_extensions:
+  - { uuid: "copyous@boerdereinar.dev", pk: 8834 }
+  - { uuid: "smile-extension@mijorus.it", pk: 6096 }
+  - { uuid: "Bluetooth-Battery-Meter@maniacx.github.com", pk: 6670 }
 
 flatpak_apps:
   - it.mijorus.smile
