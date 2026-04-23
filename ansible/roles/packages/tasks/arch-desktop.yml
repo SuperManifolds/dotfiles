@@ -75,12 +75,28 @@
     state: directory
     mode: '0755'
 
-- name: Symlink keyd GNOME extension
+# Install the keyd GNOME extension as a local copy (not a symlink) so we can
+# overwrite extension.js with our patched version. The upstream handler for
+# 'system-modal-opened' races with the polkit prompt modal and silently breaks
+# pkexec dialogs (gdm-settings Apply, password prompts in GNOME 50).
+- name: Create local keyd extension dir
   ansible.builtin.file:
-    src: /usr/share/keyd/gnome-extension-45
-    dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/keyd@keyd.rvaiya.github.com"
-    state: link
-    force: true
+    path: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/keyd@keyd.rvaiya.github.com"
+    state: directory
+    mode: '0755'
+
+- name: Copy upstream keyd extension metadata
+  ansible.builtin.copy:
+    src: /usr/share/keyd/gnome-extension-45/metadata.json
+    dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/keyd@keyd.rvaiya.github.com/metadata.json"
+    remote_src: true
+    mode: '0644'
+
+- name: Install patched keyd extension.js
+  ansible.builtin.copy:
+    src: keyd-gnome-extension.js
+    dest: "{{ ansible_env.HOME }}/.local/share/gnome-shell/extensions/keyd@keyd.rvaiya.github.com/extension.js"
+    mode: '0644'
 
 - name: Allow unsupported GNOME extension versions
   community.general.dconf:
