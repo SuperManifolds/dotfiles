@@ -58,6 +58,7 @@ pacman_desktop_packages:
   - gdm-settings
   - geary
   - ghostty
+  - gnome-themes-extra
   - gvfs-dnssd
   - gvfs-goa
   - librepods
