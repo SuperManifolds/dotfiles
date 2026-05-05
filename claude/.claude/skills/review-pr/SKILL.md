@@ -28,18 +28,18 @@ Write a short `/tmp/review-intent.md` capturing what the author *says* this PR d
 
 Find and read any of: `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.cursorrules`, `.github/pull_request_template.md`, `STYLE.md`. Walk up from the changed files' directories — repos often have nested `CLAUDE.md`.
 
-Distill the rules that are relevant to this diff into `/tmp/review-conventions.md`. Skip generic advice; keep project-specific rules (naming, error-handling patterns, forbidden APIs, required test patterns, etc.). If nothing is found, write "no project conventions found" — don't invent any.
+Write `/tmp/review-conventions.md` with two sections:
+
+1. **Rules** — project-specific conventions relevant to this diff (naming, error-handling patterns, forbidden APIs, required test patterns, etc.). Skip generic advice. If nothing relevant is found, write "no project conventions found" — don't invent any.
+2. **Tooling commands** — exact lint/typecheck/test/format commands documented in those files (e.g. `pnpm lint`, `cargo clippy --all-targets`, `pytest tests/unit`). Include any non-obvious flags or pre-steps the docs mention. If the docs don't specify, write "not documented" for that category.
 
 ## Step 3: Pre-flight signals
 
-Detect and run the project's real tooling against the diff. Try in this order, skipping anything that doesn't apply:
+Run the project's real tooling against the diff. The tooling commands captured in `/tmp/review-conventions.md` are the source of truth — use those exact commands when documented. Only fall back to detection when the conventions file says "not documented" for a category, by checking lockfiles and config files (`package.json` scripts, `Cargo.toml`, `pyproject.toml`, `Makefile` targets, `.github/workflows/*` for what CI runs) for what the project actually uses.
 
-- **Linters**: `npm run lint`, `pnpm lint`, `yarn lint`, `cargo clippy`, `ruff check`, `golangci-lint run`, `mix credo`
-- **Type checkers**: `npm run typecheck`, `tsc --noEmit`, `cargo check`, `mypy`, `pyright`, `go vet`
-- **Tests**: `npm test`, `cargo test`, `pytest`, `go test ./...` — but only on changed packages/modules if the test suite is large
-- **Formatters (check mode only)**: `prettier --check`, `cargo fmt --check`, `gofmt -l`
+Run linters, type checkers, formatters (check mode), and tests in that order. For tests, scope to changed packages/modules if the suite is large.
 
-Capture stdout+stderr to `/tmp/review-signals.md`. Real tooling output is higher-signal than any model pass — failures here are findings, not noise. If a tool isn't installed or the project doesn't use it, skip silently.
+Capture stdout+stderr to `/tmp/review-signals.md`. Real tooling output is higher-signal than any model pass — failures here are findings, not noise. If a documented tool isn't installed locally, note that in the signals file rather than skipping silently.
 
 Time-box this step to ~3 minutes. If a test suite is too slow, run only the tests that touch changed files.
 
