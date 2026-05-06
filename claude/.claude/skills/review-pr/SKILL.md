@@ -51,8 +51,15 @@ Each subagent prompt must include:
 - Pointers to `/tmp/review-diff.patch`, `/tmp/review-intent.md`, `/tmp/review-conventions.md`, `/tmp/review-signals.md`
 - Instruction to read full changed files (not just diff hunks) and chase callers/types/config when context is needed
 - The specialized charter below
-- Output instruction: write findings to `/tmp/review-<pass-name>.md`, one finding per line in the format `path:line — severity — confidence — issue — suggestion`. Confidence is `confident` (the issue is directly visible in the code being read) or `verify` (plausible but depends on assumptions about code/runtime not directly read). Default to `verify` when unsure — over-claiming confidence is the bigger failure mode. No prose, no recap, no preamble.
-- Cap at ~15 findings per pass
+- Output instruction: write findings to `/tmp/review-<pass-name>.md`, one finding per line in the format `path:line — kind — severity — confidence — description — suggestion`.
+  - **kind** is `issue`, `design`, or `style`:
+    - `issue` — the code is broken, risky, or has a downside the author probably didn't intend (regardless of whether the line *looks* deliberately written). Bugs that look intentional are still issues. A convention violation that affects correctness or safety (e.g. "always parameterize queries", "always check this error") is an `issue`, not `style`.
+    - `design` — the code does what the author intended, the choice is internally consistent, but the reviewer would have made a different one. Only raise where there's a concrete trade-off worth discussing — not matters of taste or naming preference. If `/tmp/review-conventions.md` documents the choice, divergence is `style` or `issue`, not `design`.
+    - `style` — code style and idiom: naming, formatting, ordering, language idioms, comment/doc style, magic numbers, function length. Code works correctly and the author didn't make a meaningful design choice — it's just *how* the code is written. Prefer concrete references to the convention being violated (e.g. "CONTRIBUTING.md says snake_case for modules"). Don't flag style on lines the diff didn't touch.
+    - When unsure between `issue` and `design`, prefer `issue`. When unsure between `design` and `style`, prefer `style`.
+  - **confidence** is `confident` (directly visible in the code being read) or `verify` (plausible but depends on assumptions about code/runtime not directly read). Default to `verify` when unsure — over-claiming confidence is the bigger failure mode. Style findings are almost always `confident`.
+  - No prose, no recap, no preamble.
+- Cap at ~15 findings per pass, with at most ~3 `design` and ~5 `style` of those
 
 **Passes:**
 
@@ -64,6 +71,7 @@ Each subagent prompt must include:
 6. **performance** — hot-path allocations, N+1 patterns, unnecessary copies, complexity regressions, sync work in async paths.
 7. **whats-missing** — things the diff *should* have changed but didn't. Search for old names that survived a rename, sibling files that look untouched, asymmetric updates (one caller updated, others not), added flags without docs, changed structs without serializer/migration updates, new errors without handlers. This pass is the highest-yield in practice — give it weight.
 8. **adversarial** — try to *break* the change. Pathological inputs, empty/null/huge values, concurrent calls, partial failures, network blips mid-operation, malformed config, race against shutdown, what happens on retry. Different framing surfaces different bugs.
+9. **style** — focused pass for `style`-kind findings only. Compare changed code against the conventions in `/tmp/review-conventions.md` and the surrounding code's existing idioms. Look for: naming (case, prefixes, suffixes), formatting deviations the formatter would catch, magic numbers, comment/doc style, ordering (imports, fields, methods), language idioms (e.g. `Result` vs panic, `Option` vs null, `for…of` vs `forEach`). Don't flag style on lines the diff didn't touch. Don't raise `issue` or `design` from this pass — those belong to the other passes.
 
 ## Step 5: Merge, dedupe, and intent-check
 
@@ -75,12 +83,13 @@ Read all `/tmp/review-*.md` files. Then:
    - **Medium**: logic errors, leaks, contract violations, missing validation at boundaries, test gaps for new behavior.
    - **Low**: perf concerns, dead code, misleading names, non-obvious invariants without comments.
 3. **Drop noise**: pure style nits unless they cause bugs.
-4. **Intent check**: explicitly compare `/tmp/review-intent.md` against the diff. Does the diff actually do what the description claims? Are there changes in the diff *not* mentioned in the intent? Both directions matter — undisclosed scope creep is a finding.
-5. **Verification checklist for High findings**: for each remaining High-severity finding, write a concrete verification step — the specific command, test case, manual check, or file/line to inspect that would confirm the issue is real. One per finding. This converts AI claims into actions the user can take. Save to `/tmp/review-verify.md`.
+4. **Split by kind**: write `issue`-kind findings to `/tmp/review-issues.md`, `design`-kind to `/tmp/review-design.md`, and `style`-kind to `/tmp/review-style.md`. Issues drive verification, reproduction, and the main presentation. Design and style are separate output — neither is reproduced or verified. For design points, drop any item only one pass raised at low severity — almost always taste, not signal. For style, dedupe aggressively (the formatter pass and the dedicated style pass will overlap), and group near-duplicates into one entry where possible (e.g. "use snake_case for module names" with multiple file references rather than one entry per file).
+5. **Intent check**: explicitly compare `/tmp/review-intent.md` against the diff. Does the diff actually do what the description claims? Are there changes in the diff *not* mentioned in the intent? Both directions matter — undisclosed scope creep is an `issue`.
+6. **Verification checklist for High issues**: for each remaining High-severity issue (not design point), write a concrete verification step — the specific command, test case, manual check, or file/line to inspect that would confirm the issue is real. One per issue. This converts AI claims into actions the user can take. Save to `/tmp/review-verify.md`.
 
 ## Step 6: Attempt to reproduce findings
 
-For each finding tagged High, or Medium-with-`verify`-confidence, try to actually produce evidence — confirm or refute it in practice — before presenting. Spawn a single `subagent_type: general-purpose` agent for this step (it needs Bash to run scripts; Explore can't write reproduction files).
+For each `issue`-kind finding tagged High, or Medium-with-`verify`-confidence, try to actually produce evidence — confirm or refute it in practice — before presenting. Design points are not reproduced. Spawn a single `subagent_type: general-purpose` agent for this step (it needs Bash to run scripts; Explore can't write reproduction files).
 
 The subagent prompt must include:
 - Pointer to `/tmp/review-verify.md` and the merged findings list
@@ -111,15 +120,17 @@ After the subagent returns, read `/tmp/review-reproduced.md` and update the merg
 1. **One-line summary** of what the changes do.
 2. **Intent vs diff** — only if there's a mismatch worth surfacing.
 3. **Pre-flight tooling results** — concise: passed / failed / skipped, with failure summaries.
-4. **Findings by severity** (High / Medium / Low):
+4. **Issues by severity** (High / Medium / Low) — these are bugs, risks, and likely-unintended consequences:
    - `path/to/file.ext:line` — issue — suggestion
    - Append `[security, whats-missing]` etc. when multiple passes raised it.
    - Append `(verify)` to findings whose underlying confidence is `verify` rather than `confident`.
    - Append `(reproduced)` to findings confirmed in Step 6 with concrete evidence — these are the most actionable.
-5. **Verification checklist** — for each High finding not already reproduced, the concrete check from `/tmp/review-verify.md`. Skip this section if every High finding was reproduced or there are none.
-6. **Ruled out** — short list of findings the reproduction step refuted, one line each, so the user can see what was considered and why it's not a real issue.
-7. **Coverage notes** — anything un-reviewable (generated files, vendored code, files too large to read).
-8. **Positive notes** — briefly call out what's done well.
+5. **Design notes** — separate, deliberately subordinate section. These are choices the author appears to have made intentionally that the review would push back on. Frame each as a question or trade-off, not a directive: `path:line — what the choice is — what the trade-off is — alternative the author may want to consider`. Skip this section if there are no design notes after Step 5's filtering. Make clear in the section header that these are debate points, not problems to fix.
+6. **Code style** — separate, even-more-subordinate section. These are surface-level style and idiom items: naming, formatting, magic numbers, comment style, ordering, language idioms. One bullet per item: `path:line — what — convention or idiom violated`. Group repeated violations into a single entry with multiple file refs. Header should make clear this is "style nits, not blockers" — many users skip this section, and that's fine.
+7. **Verification checklist** — for each High issue not already reproduced, the concrete check from `/tmp/review-verify.md`. Skip this section if every High issue was reproduced or there are none.
+8. **Ruled out** — short list of issues the reproduction step refuted, one line each, so the user can see what was considered and why it's not a real issue.
+9. **Coverage notes** — anything un-reviewable (generated files, vendored code, files too large to read).
+10. **Positive notes** — briefly call out what's done well.
 
 Do NOT:
 - Skip the fan-out step and review everything yourself in one pass.
