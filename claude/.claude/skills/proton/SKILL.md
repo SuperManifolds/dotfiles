@@ -65,36 +65,33 @@ curl -s --max-time 20 "https://www.protondb.com/api/v1/reports/summaries/<APPID>
 ```
 Gives `tier` (platinum/gold/…), `confidence`, `score`, `total` report count. This is the only structured data ProtonDB exposes — the per-report text is **not** in any public API (the `max-p.me` mirror is a stale 2018 dump; don't use it).
 
-## Step 4 — ProtonDB: scrape community reports (headless Chromium)
+## Step 4 — ProtonDB: scrape ALL community reports → structured data → sub-agent
 
-The report bodies (launch options, Proton versions, HDR/gamescope notes) are client-rendered JS. Render the page and extract:
+The report bodies (launch options, Proton versions, HDR/gamescope notes) are client-rendered JS. Render the page, then extract **every** report into structured JSON — do **not** keyword-filter at this stage; valuable reports often don't contain obvious keywords, and a naive grep silently drops them.
 
+**4a. Render the page (headless Chromium):**
 ```bash
 timeout 90 chromium --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
   --virtual-time-budget=20000 --dump-dom "https://www.protondb.com/app/<APPID>" \
   > /tmp/protondb_<APPID>.html 2>/dev/null
-wc -c /tmp/protondb_<APPID>.html   # sanity: should be ~300KB+, not a 3KB shell
+wc -c /tmp/protondb_<APPID>.html   # sanity: ~300KB+, not a 3KB JS shell
 ```
+If `chromium` isn't found, try `google-chrome-stable`/`brave` with the same flags. If the file is only a few KB, the render didn't execute JS — bump `--virtual-time-budget` and retry. Do NOT fall back to keyword-grepping the shell and pretend it had report data.
 
-Then pull the useful signal:
-
+**4b. Parse into structured records** with the companion script (lives next to this skill):
 ```bash
-python3 - <<'PY'
-import re, html
-raw = open('/tmp/protondb_<APPID>.html', encoding='utf-8', errors='ignore').read()
-text = html.unescape(re.sub(r'<[^>]+>', '\n', raw))
-lines = [l.strip() for l in text.split('\n') if l.strip()]
-keys = ['HDR','gamescope','PROTON_ENABLE','GE-Proton','Proton-GE','DXVK','VKD3D',
-        'Wayland','NVIDIA','5070','5080','5090','Blackwell','launch option',
-        'prefer-vk','crash','DLSS','FSR','framerate','stutter']
-seen=set()
-for l in lines:
-    if len(l) > 25 and any(k.lower() in l.lower() for k in keys) and l not in seen:
-        seen.add(l); print('•', l)
-PY
+python3 ~/.claude/skills/proton/protondb_parse.py /tmp/protondb_<APPID>.html >| /tmp/protondb_<APPID>.json
+python3 -c "import json;d=json.load(open('/tmp/protondb_<APPID>.json'));print(len(d),'reports')"
 ```
+Each record has: `text` (full cleaned report — the source of truth), `proton`, `date`, `distro`, and boolean hints `has_launch_options` / `mentions_nvidia` / `mentions_hdr`. Sanity-check the count is in the tens, not 0–1.
 
-Weight reports from **NVIDIA / RTX 50-series / GNOME or KDE Wayland** users highest — they match this machine. Note which Proton version each working report used.
+**4c. Hand the WHOLE set to a sub-agent.** Spawn a sub-agent (Agent tool, general-purpose) and give it: the JSON file path, this machine's profile from Step 1, and the user preferences above. Instruct it to **read every report's `text`** (not just keyword matches) and return:
+- the 3–6 most relevant reports for *this* hardware (NVIDIA RTX 50-series / Wayland / HDR), quoting their exact launch options and Proton version;
+- any consensus on the best Proton version;
+- recurring problems (crashes, anti-cheat, DLSS/FSR, stutter) even when phrased in unusual words;
+- contradictions between reports and which to trust (prefer recent + hardware-matched).
+
+The sub-agent reasons over the full corpus so nothing valuable is dropped by keyword bias. Use its summary as the ProtonDB evidence for Step 6. If the report count is tiny (≤5), skip the sub-agent and just read them inline.
 
 ## Step 5 — Detect the game's renderer (affects HDR path)
 
