@@ -1,5 +1,10 @@
 # Managed by dotfiles (stow package: fish)
 
+# Homebrew
+if test -x /opt/homebrew/bin/brew
+    /opt/homebrew/bin/brew shellenv | source
+end
+
 # Add ~/.local/bin to PATH
 if test -d ~/.local/bin; and not contains -- ~/.local/bin $PATH
     fish_add_path ~/.local/bin

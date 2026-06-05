@@ -6,6 +6,7 @@ stow_packages:
   - tmux
   - ghostty
   - fish
+  - starship
   - claude
 
 # macOS-only packages
