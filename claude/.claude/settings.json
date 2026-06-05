@@ -1,9 +1,13 @@
 {
-  "env": {},
+  "env": {
+    "ANTHROPIC_CUSTOM_HEADERS": "anthropic-beta: interleaved-thinking-2025-05-14",
+    "MAX_THINKING_TOKENS": "31999"
+  },
   "attribution": {
     "commit": "",
     "pr": ""
   },
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "Bash(git log*)",
@@ -33,9 +37,22 @@
       "mcp__slite__search-notes",
       "mcp__slite__get-note-children",
       "mcp__slite__get-note",
-      "mcp__slack__slack_read_channel"
+      "mcp__slack__slack_read_channel",
+      "WebFetch(domain:*)",
+      "WebSearch",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(make:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(cargo:*)",
+      "Bash(git config:*)",
+      "Bash(pip3 install:*)",
+      "Bash(pip3 list:*)"
     ]
   },
+  "model": "opus",
   "enabledPlugins": {
     "clangd-lsp@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
@@ -43,5 +60,14 @@
     "rust-analyzer-lsp@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    }
+  }
 }
