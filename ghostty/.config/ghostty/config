@@ -1,4 +1,3 @@
-command = /opt/homebrew/bin/fish
 theme = Tomorrow Night
 font-family = "JetBrains Mono NerdFont Mono"
 background-opacity = 0.95

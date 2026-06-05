@@ -1,73 +1,19 @@
 {
-  "env": {
-    "ANTHROPIC_CUSTOM_HEADERS": "anthropic-beta: interleaved-thinking-2025-05-14",
-    "MAX_THINKING_TOKENS": "31999"
-  },
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Bash(git log*)",
-      "Bash(kind get*)",
-      "Bash(kubectl get*)",
-      "Bash(git status*)",
-      "Bash(git diff*)",
-      "Bash(docker ps*)",
-      "Bash(tail*)",
-      "Bash(docker exec*)",
-      "Bash(curl*)",
-      "Bash(kubectl describe*)",
-      "Bash(ls*)",
-      "Bash(gh pr*)",
-      "Bash(wc*)",
-      "Read",
-      "Bash(cd*)",
-      "Bash(gh run view*)",
-      "Bash(gh run list*)",
-      "Bash(gh api*)",
-      "Bash(find*)",
-      "mcp__claude_ai_Linear__get_issue",
-      "Bash(kubectl logs*)",
-      "Bash(gh api:*)",
-      "mcp__claude_ai_Linear__list_issues",
-      "mcp__claude_ai_Linear__get_user",
-      "mcp__slite__search-notes",
-      "mcp__slite__get-note-children",
-      "mcp__slite__get-note",
-      "mcp__slack__slack_read_channel",
-      "WebFetch(domain:*)",
-      "WebSearch",
-      "Bash(cat:*)",
-      "Bash(mkdir:*)",
-      "Bash(make:*)",
-      "Bash(grep:*)",
-      "Bash(sed:*)",
-      "Bash(awk:*)",
-      "Bash(cargo:*)",
-      "Bash(git config:*)",
-      "Bash(pip3 install:*)",
-      "Bash(pip3 list:*)"
+      "mcp__pencil"
     ]
   },
-  "model": "opus",
   "enabledPlugins": {
-    "clangd-lsp@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true,
+    "clangd-lsp@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
-  "mcpServers": {
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp"
-      ]
-    }
+  "feedbackSurveyState": {
+    "lastShownTime": 1753976065381
   }
 }

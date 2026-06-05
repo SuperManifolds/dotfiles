@@ -52,3 +52,8 @@ end
 # --- Aliases -------------------------------------------------------------
 # Claude Code with permission prompts disabled. Forwards extra args.
 alias clauded='claude --dangerously-skip-permissions'
+alias claudedr='claude --dangerously-skip-permissions --resume'
+
+# Added by OrbStack: command-line tools and integration
+# This won't be added again if you remove it.
+source ~/.orbstack/shell/init2.fish 2>/dev/null || :

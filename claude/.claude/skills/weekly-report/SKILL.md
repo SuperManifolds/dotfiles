@@ -97,11 +97,11 @@ Generate a weekly progress report for the specified author (default: current git
        - [Planned work item 1]
        - [Planned work item 2]
    - **GITHUB**
-       - url - Status
-       - url - Reviewed
+       - [PR #X: Title](url) - Status
+       - [PR #Y: Title](url) - Reviewed
    - **LINEAR**
-       - url - Created/Moved to [Status]/Commented
-       - url - Status change: [Old] → [New]
+       - [ARCH-XXX: Title](url) - Created/Moved to [Status]/Commented
+       - [ARCH-YYY: Title](url) - Status change: [Old] → [New]
    ```
    ````
 
@@ -119,3 +119,4 @@ Generate a weekly progress report for the specified author (default: current git
   - Include tickets where you left comments
   - Show status transitions when relevant (e.g., "In Progress → Done")
   - Correlate Linear tickets with related PRs when possible
+
