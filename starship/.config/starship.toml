@@ -1,1 +1,16 @@
 command_timeout = 5000
+
+# Only show cloud modules when explicitly activated, not from global config
+[aws]
+disabled = true
+
+[gcloud]
+detect_env_vars = ["CLOUDSDK_ACTIVE_CONFIG_NAME", "GCLOUD_PROJECT"]
+
+# Show AWS info only when AWS_PROFILE is explicitly set
+[custom.aws]
+command = "echo $AWS_PROFILE ($AWS_REGION)"
+when = "test -n \"$AWS_PROFILE\""
+format = "on [$symbol($output )]($style)"
+symbol = "☁️ "
+style = "bold yellow"
