@@ -6,6 +6,6 @@
 
   roles:
     - packages
-    - zsh
+    - fish
     - tmux
     - dotfiles

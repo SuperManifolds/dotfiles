@@ -1,0 +1,62 @@
+---
+# Get fish path
+- name: Get fish path
+  ansible.builtin.command: which fish
+  register: fish_path
+  changed_when: false
+
+# Ensure fish is a valid login shell. Linux package managers add it to
+# /etc/shells automatically, but Homebrew on macOS does not.
+- name: Ensure fish is listed in /etc/shells
+  ansible.builtin.lineinfile:
+    path: /etc/shells
+    line: "{{ fish_path.stdout }}"
+    state: present
+  become: true
+
+# Check current shell
+- name: Check if fish is default shell (macOS)
+  ansible.builtin.shell: "dscl . -read /Users/{{ ansible_user_id }} UserShell | awk '{print $2}'"
+  register: current_shell
+  changed_when: false
+  when: ansible_os_family == "Darwin"
+
+- name: Check if fish is default shell (Linux)
+  ansible.builtin.shell: "getent passwd {{ ansible_user_id }} | cut -d: -f7"
+  register: current_shell_linux
+  changed_when: false
+  when: ansible_os_family != "Darwin"
+
+# Set fish as default shell
+- name: Set fish as default shell (macOS)
+  ansible.builtin.command: "chsh -s {{ fish_path.stdout }}"
+  when:
+    - ansible_os_family == "Darwin"
+    - current_shell.stdout != fish_path.stdout
+
+- name: Set fish as default shell (Linux)
+  ansible.builtin.user:
+    name: "{{ ansible_user_id }}"
+    shell: "{{ fish_path.stdout }}"
+  become: true
+  when:
+    - ansible_os_family != "Darwin"
+    - current_shell_linux.stdout != fish_path.stdout
+
+# Ensure Starship is installed. Available as a native package on Arch and via
+# Homebrew, but not in Fedora's default repos — fall back to the official
+# installer into ~/.local/bin (which config.fish already adds to PATH).
+- name: Check if starship is installed
+  ansible.builtin.command: which starship
+  register: starship_check
+  changed_when: false
+  failed_when: false
+
+- name: Install starship via official installer
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://starship.rs/install.sh | sh -s -- --yes --bin-dir {{ ansible_env.HOME }}/.local/bin
+  args:
+    executable: /bin/bash
+    creates: "{{ ansible_env.HOME }}/.local/bin/starship"
+  when: starship_check.rc != 0

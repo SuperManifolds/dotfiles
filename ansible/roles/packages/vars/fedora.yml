@@ -2,7 +2,9 @@
 dnf_packages:
   - ansible
   - awscli2
+  - fastfetch
   - ffmpeg-free
+  - fish
   - gh
   - gnupg2
   - jq
@@ -13,7 +15,6 @@ dnf_packages:
   - ripgrep
   - stow
   - tmux
-  - zsh
   - yt-dlp
   - mariadb-server
   - golang

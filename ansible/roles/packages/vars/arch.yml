@@ -11,8 +11,10 @@ pacman_packages:
   - docker-compose
   - dust
   - eza
+  - fastfetch
   - fd
   - ffmpeg
+  - fish
   - git
   - git-delta
   - git-filter-repo
@@ -33,12 +35,12 @@ pacman_packages:
   - python-pipx
   - ripgrep
   - rustup
+  - starship
   - stow
   - tmux
   - unarchiver
   - xh
   - yt-dlp
-  - zsh
 
 aur_packages:
   - opentofu-bin

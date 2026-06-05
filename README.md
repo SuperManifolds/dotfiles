@@ -46,9 +46,10 @@ See `Brewfile` for macOS packages and `ansible/roles/packages/vars/fedora.yml` f
 
 ### Shell
 
-- **Zsh** set as default shell
-- **Prezto** framework with agnoster theme
-- Syntax highlighting, history substring search
+- **Fish** set as default shell
+- **Starship** cross-shell prompt
+- **fastfetch** welcome banner on every new shell (all OSes)
+- PR/worktree helper functions (`prls`, `prn`, `prd`, `wt`)
 
 ### Tmux
 
@@ -65,7 +66,7 @@ See `Brewfile` for macOS packages and `ansible/roles/packages/vars/fedora.yml` f
 | `nvim/` | Neovim configuration |
 | `tmux/` | Tmux configuration |
 | `ghostty/` | Ghostty terminal configuration |
-| `zsh/` | Prezto configuration (.zpreztorc) |
+| `fish/` | Fish shell config (config.fish, functions, greeting) |
 | `karabiner/` | Karabiner-Elements (macOS only) |
 
 ## Structure
@@ -80,14 +81,14 @@ dotfiles/
 │   ├── inventory.yml     # Local inventory
 │   └── roles/
 │       ├── packages/     # Package installation
-│       ├── zsh/          # Zsh + Prezto setup
+│       ├── fish/         # Fish shell + Starship setup
 │       ├── tmux/         # TPM (Tmux Plugin Manager)
 │       └── dotfiles/     # Stow symlinks
 ├── git/                  # Git config (stow)
 ├── nvim/                 # Neovim config (stow)
 ├── tmux/                 # Tmux config (stow)
 ├── ghostty/              # Ghostty config (stow)
-├── zsh/                  # Prezto config (stow)
+├── fish/                 # Fish shell config (stow)
 └── karabiner/            # Karabiner config (stow, macOS only)
 ```
 
@@ -97,7 +98,7 @@ After running `setup.sh`:
 
 ### Required
 
-1. **Restart your shell** or log out/in for zsh and PATH changes to take effect
+1. **Restart your shell** or log out/in for the fish/shell and PATH changes to take effect
 2. **Install tmux plugins**: Open tmux and press `<prefix>` + `I` to install plugins via TPM
 
 ### Git Setup
@@ -158,7 +159,7 @@ To update tmux plugins, press `<prefix>` + `U` inside tmux.
 
 ## Adding New Dotfiles
 
-1. Create a directory for the app (e.g., `zsh/`)
-2. Mirror the home directory structure inside it (e.g., `zsh/.zshrc`)
+1. Create a directory for the app (e.g., `fish/`)
+2. Mirror the home directory structure inside it (e.g., `fish/.config/fish/config.fish`)
 3. Add the directory name to `ansible/roles/dotfiles/vars/main.yml`
-4. Run `./setup.sh` or manually: `stow -t ~ zsh`
+4. Run `./setup.sh` or manually: `stow -t ~ fish`
