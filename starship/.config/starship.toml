@@ -1,5 +1,26 @@
 command_timeout = 5000
 
+# Git: show ahead/behind counts, stash, and status indicators
+[git_branch]
+format = "[$symbol$branch(:$remote_branch)]($style) "
+
+[git_status]
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇡${ahead_count}⇣${behind_count}"
+stashed = "≡${count}"
+format = '([\[$all_status$ahead_behind\]]($style) )'
+
+# Kubernetes: show context and namespace
+[kubernetes]
+disabled = false
+format = "[$symbol$context( \\($namespace\\))]($style) "
+detect_env_vars = ["KUBECONFIG"]
+contexts = [
+  { context_pattern = ".*prod.*", style = "bold red" },
+  { context_pattern = ".*stag.*", style = "bold yellow" },
+]
+
 # Only show cloud modules when explicitly activated, not from global config
 [aws]
 disabled = true

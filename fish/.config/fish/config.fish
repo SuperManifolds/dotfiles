@@ -53,6 +53,8 @@ end
 # Claude Code with permission prompts disabled. Forwards extra args.
 alias clauded='claude --dangerously-skip-permissions'
 alias claudedr='claude --dangerously-skip-permissions --resume'
+alias t='tmux'
+alias ta='tmux attach'
 
 # Added by OrbStack: command-line tools and integration
 # This won't be added again if you remove it.
