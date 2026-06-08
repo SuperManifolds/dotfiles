@@ -2,6 +2,28 @@
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
+      "Read",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(curl:*)",
+      "Bash(make:*)",
+      "Bash(cargo:*)",
+      "Bash(go:*)",
+      "Bash(swift:*)",
+      "Bash(npm:*)",
+      "Bash(bun:*)",
+      "Bash(mise:*)",
+      "Bash(kubectl:*)",
+      "Bash(helm:*)",
+      "Bash(docker:*)",
+      "Bash(brew:*)",
+      "WebFetch(domain:*)",
+      "WebSearch",
       "mcp__pencil"
     ]
   },
@@ -13,7 +35,7 @@
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
-  "feedbackSurveyState": {
-    "lastShownTime": 1753976065381
-  }
+  "showThinkingSummaries": true,
+  "autoMemoryEnabled": true,
+  "cleanupPeriodDays": 180
 }
