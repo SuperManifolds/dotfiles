@@ -22,6 +22,7 @@
 - Prefer early returns over deep nesting. Keep functions small and single-purpose.
 - Use constants for magic numbers, colors, and spacing values.
 - Prefer declarative/functional patterns over imperative loops.
+- Comments explain the current state of the code standalone — never reference its previous state, the bug being fixed, or frame the change as a diff (that belongs in the commit/PR).
 
 ## Testing
 
@@ -51,5 +52,7 @@
 
 ## Git
 
-- Use conventional commit style (e.g. `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`).
+- Use conventional commit style (e.g. `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`); add a component scope where the repo uses one (e.g. `fix(networking):`).
+- Keep messages succinct — a short imperative subject, and a body only when the "why" isn't obvious.
+- Never add AI/Claude Code attribution or co-author trailers to commits or PRs.
 - Don't amend published commits.
