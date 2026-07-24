@@ -5,6 +5,8 @@
 	email = alex@sorlie.io
 [commit]
 	verbose = true
+[core]
+	hooksPath = ~/.config/git/hooks
 [column]
 	ui = auto
 [branch]

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Global pre-commit hook (installed via core.hooksPath in ~/.gitconfig).
+# Blocks commits whose staged changes contain secrets, then delegates to a
+# repo-local .git/hooks/pre-commit if one exists.
+export LC_ALL="${LC_ALL:-en_US.UTF-8}" LANG="${LANG:-en_US.UTF-8}"
+
+if command -v gitleaks >/dev/null 2>&1; then
+  out="$(gitleaks git --staged --redact --no-banner 2>&1)"; rc=$?
+  if [ "$rc" -ne 0 ]; then
+    printf '%s\n' "$out" >&2
+    echo "" >&2
+    echo "gitleaks: potential secret in staged changes — commit blocked." >&2
+    echo "  Inspect: gitleaks git --staged --redact --verbose" >&2
+    echo "  Override a false positive: git commit --no-verify" >&2
+    exit 1
+  fi
+fi
+
+# Chain to a repo-local hook if present and it isn't this global one.
+repo_hook="$(git rev-parse --git-dir 2>/dev/null)/hooks/pre-commit"
+if [ -x "$repo_hook" ] && ! [ "$repo_hook" -ef "$0" ]; then
+  exec "$repo_hook" "$@"
+fi
+exit 0

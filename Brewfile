@@ -45,6 +45,9 @@ brew "swiftly"
 brew "gopls"
 brew "biome"
 
+# Secret scanning (global git pre-commit hook)
+brew "gitleaks"
+
 # Kubernetes
 brew "helm"
 brew "kind"
