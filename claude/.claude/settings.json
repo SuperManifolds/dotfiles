@@ -29,6 +29,7 @@
     ]
   },
   "model": "opus[1m]",
+  "outputStyle": "Proactive",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
