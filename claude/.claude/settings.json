@@ -43,6 +43,13 @@
           { "type": "command", "command": "$HOME/.claude/hooks/format.sh", "timeout": 30 }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "$HOME/.claude/hooks/verify-stop.sh", "timeout": 180 }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
