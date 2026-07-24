@@ -7,6 +7,9 @@ vim.filetype.add({
     extension = {
         templ = "templ",
     },
+    filename = {
+        ["mod.txt"] = "dosini",
+    },
 })
 
 vim.api.nvim_create_autocmd("VimEnter", {

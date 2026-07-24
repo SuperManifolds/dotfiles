@@ -8,6 +8,7 @@ return {
                 'html',
                 'javascript',
                 'typescript',
+                'dosini',
             }, {
                 RGB = true,
                 RRGGBB = true,
