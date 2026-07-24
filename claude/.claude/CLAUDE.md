@@ -1,5 +1,7 @@
 # Global Instructions
 
+_Global defaults. A project's CLAUDE.md, skills, or established conventions win on conflict._
+
 ## Communication
 
 - Be concise and technical. Lead with the answer, then a short rationale.
@@ -18,10 +20,9 @@
 ## Code Quality
 
 - Address all warnings (linters, compilers). Never silence without explicit consent.
-- Remove dead code — don't comment it out or suppress with attributes.
+- Remove dead code your change introduces — don't comment it out or suppress with attributes. For pre-existing dead code, mention it rather than deleting (see Surgical Changes).
 - Prefer early returns over deep nesting. Keep functions small and single-purpose.
 - Use constants for magic numbers, colors, and spacing values.
-- Prefer declarative/functional patterns over imperative loops.
 - Comments explain the current state of the code standalone — never reference its previous state, the bug being fixed, or frame the change as a diff (that belongs in the commit/PR).
 
 ## Testing
@@ -41,12 +42,13 @@
 
 - For multi-step tasks, state a brief plan with verifiable checks before starting.
 - Transform vague requests into concrete goals (e.g. "fix the bug" → "write a test that reproduces it, then make it pass").
-- IMPORTANT: After making changes, run the relevant build/test/lint command to verify. Show evidence of success rather than asserting it worked.
+- Use the project's task commands (Makefile, justfile, package.json scripts) when they exist, rather than raw tools; discover them first.
+- IMPORTANT: After making changes, YOU MUST run the relevant build/test/lint command to verify. Show evidence of success rather than asserting it worked.
 
 ## Don'ts
 
 - IMPORTANT: Never commit secrets, API keys, or credentials.
-- Never add dependencies without asking first.
+- NEVER add dependencies without asking first.
 - Never run the full test suite when a specific test file can be targeted.
 - Never generate mock data with obviously fake values ("test123", "foo@bar.com") — use realistic values.
 
