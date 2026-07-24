@@ -62,3 +62,6 @@ source ~/.orbstack/shell/init2.fish 2>/dev/null || :
 
 # opencode
 fish_add_path /Users/alex/.opencode/bin
+
+# Go binaries (gopls, etc.)
+fish_add_path /Users/alex/go/bin

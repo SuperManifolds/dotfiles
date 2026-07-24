@@ -29,10 +29,16 @@
     ]
   },
   "model": "opus[1m]",
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0
+  },
   "enabledPlugins": {
     "rust-analyzer-lsp@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
     "clangd-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
     "context7@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
