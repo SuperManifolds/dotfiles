@@ -55,7 +55,15 @@
       {
         "matcher": "startup|resume|clear|compact",
         "hooks": [
-          { "type": "command", "command": "$HOME/.claude/hooks/session-context.sh", "timeout": 10 }
+          { "type": "command", "command": "$HOME/.claude/hooks/session-context.sh", "timeout": 10 },
+          { "type": "command", "command": "$HOME/.claude/hooks/mise-env.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "hooks": [
+          { "type": "command", "command": "$HOME/.claude/hooks/mise-env.sh", "timeout": 10 }
         ]
       }
     ]
