@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Research a task and write a self-contained implementation spec to a file, so the work survives context resets and can be executed in a fresh session. Manual-only — invoke with `/plan <task> [path]`.
+description: Turn a task (optionally grounded by a /research artifact) into a self-contained implementation spec written to a file, so the work survives context resets and can be executed in a fresh session. Manual-only — invoke with `/plan <task> [path]`. Use as the middle step of the research→plan→implement loop, before /implement.
 disable-model-invocation: true
 argument-hint: "<task description> [output path (default: ./spec.md)]"
 allowed-tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch
@@ -10,10 +10,14 @@ Produce an implementation plan for the task in `$ARGUMENTS` and write it to a
 file. This is planning only — **do not implement**. The output is a spec a
 fresh session (or a subagent) can execute without the context you have now.
 
-Resolve the output path from `$ARGUMENTS` if a path is given; otherwise default
-to `./spec.md`. If the repo has a `plans/`, `docs/`, or `specs/` directory,
-prefer writing there. If the file exists, read it and update rather than
-clobber.
+Resolve the output path from `$ARGUMENTS` if a path is given; otherwise write to
+`thoughts/plans/<slug>.md` (matching `/research`), or an existing `plans/`,
+`docs/`, or `specs/` directory if the repo already uses one, else `./spec.md`.
+If the file exists, read it and update rather than clobber.
+
+If a research artifact exists (a `/research` output in `thoughts/research/`, or
+one named in `$ARGUMENTS`), read it first and build the plan on top of it rather
+than re-investigating from scratch.
 
 ## Steps
 
@@ -41,8 +45,9 @@ clobber.
    Write for a reader with zero prior context. Prefer concrete file/command
    references over prose. Keep it tight — a plan, not an essay.
 
-4. **Report** the path and a one-line summary. Offer to start executing, or to
-   hand the spec to a fresh session.
+4. **Report** the path and a one-line summary. Suggest reviewing the plan before
+   coding — a wrong line here costs far more than a wrong line of code — then
+   `/implement <path>` (ideally in a fresh session) to execute it.
 
 ## Notes
 
