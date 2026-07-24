@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Global pre-commit hook (installed via core.hooksPath in ~/.gitconfig).
-# Blocks commits whose staged changes contain secrets, then delegates to a
-# repo-local .git/hooks/pre-commit if one exists.
+# Blocks commits that contain secrets or a malformed Claude Code skill/agent,
+# then delegates to a repo-local .git/hooks/pre-commit if one exists.
 export LC_ALL="${LC_ALL:-en_US.UTF-8}" LANG="${LANG:-en_US.UTF-8}"
 
 if command -v gitleaks >/dev/null 2>&1; then
@@ -13,6 +13,52 @@ if command -v gitleaks >/dev/null 2>&1; then
     echo "  Inspect: gitleaks git --staged --redact --verbose" >&2
     echo "  Override a false positive: git commit --no-verify" >&2
     exit 1
+  fi
+fi
+
+# Validate staged Claude Code skill/agent frontmatter (valid YAML, required
+# name + description, naming rules). A malformed artifact silently fails to
+# load, so catch it at the commit boundary. Needs ruby (stdlib YAML); skipped
+# if unavailable so this never blocks on a machine without it.
+artifacts="$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+  | grep -E '(^|/)\.claude/skills/.+/SKILL\.md$|(^|/)\.claude/agents/[^/]+\.md$|(^|/)SKILL\.md$' || true)"
+if [ -n "$artifacts" ]; then
+  if command -v ruby >/dev/null 2>&1; then
+    bad=0
+    while IFS= read -r f; do
+      [ -n "$f" ] && [ -f "$f" ] || continue
+      err="$(ruby -ryaml -e '
+        raw = File.read(ARGV[0])
+        m = raw.match(/\A---\n(.*?)\n---\n/m)
+        abort "missing YAML frontmatter" unless m
+        begin d = YAML.safe_load(m[1]); rescue => e; abort "invalid YAML: #{e.message}"; end
+        abort "frontmatter is not a mapping" unless d.is_a?(Hash)
+        name = d["name"].to_s; desc = d["description"].to_s
+        abort "missing name" if name.strip.empty?
+        abort "missing description" if desc.strip.empty?
+        abort "name must be lowercase a-z/0-9/hyphen, <=64 chars (got #{name.inspect})" unless name =~ /\A[a-z0-9-]{1,64}\z/
+        abort "name must not contain reserved words anthropic/claude" if name =~ /anthropic|claude/
+        abort "description too long (#{desc.length} > 1024)" if desc.length > 1024
+        if File.basename(ARGV[0]) == "SKILL.md"
+          body = raw.sub(/\A---\n.*?\n---\n/m, "")
+          warn "note: SKILL.md body is #{body.lines.count} lines (>500 recommended max)" if body.lines.count > 500
+        end
+      ' "$f" 2>&1)"
+      if [ $? -ne 0 ]; then
+        echo "pre-commit: invalid Claude artifact: $f" >&2
+        echo "  $err" >&2
+        bad=1
+      elif [ -n "$err" ]; then
+        echo "pre-commit: $f — $err" >&2
+      fi
+    done <<< "$artifacts"
+    if [ "$bad" -ne 0 ]; then
+      echo "" >&2
+      echo "Fix the frontmatter above, or 'git commit --no-verify' to bypass." >&2
+      exit 1
+    fi
+  else
+    echo "pre-commit: ruby not found — skipping skill/agent frontmatter validation." >&2
   fi
 fi
 
