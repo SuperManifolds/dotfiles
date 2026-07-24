@@ -41,6 +41,10 @@ brew "pipx"
 brew "rustup"
 brew "swiftly"
 
+# LSP & formatters (used by Claude Code plugins/hooks)
+brew "gopls"
+brew "biome"
+
 # Kubernetes
 brew "helm"
 brew "kind"
