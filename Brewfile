@@ -38,6 +38,7 @@ brew "go"
 brew "coreutils"
 brew "mise"
 brew "pipx"
+brew "uv"
 brew "rustup"
 brew "swiftly"
 
