@@ -56,6 +56,13 @@ if type -q mise
     mise activate fish | source
 end
 
+# zoxide: smart directory jumping via `z` / `zi` (frecency). `cd` is left
+# native; run `z <partial>` to jump. fzf.fish (a fisher plugin) provides the
+# Ctrl-R history / Ctrl-Alt-F file / git pickers and needs no init here.
+if type -q zoxide
+    zoxide init fish | source
+end
+
 # --- Aliases -------------------------------------------------------------
 # Claude Code with permission prompts disabled. Forwards extra args.
 alias clauded='claude --dangerously-skip-permissions'

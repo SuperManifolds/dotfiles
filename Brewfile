@@ -24,6 +24,12 @@ brew "p7zip"
 brew "pngpaste"
 brew "pyenv"
 brew "ripgrep"
+# Modern CLI ergonomics (fish): fuzzy finder + smart cd + fd/bat power the
+# fzf.fish pickers (search dir, git log/status, history).
+brew "fzf"
+brew "fd"
+brew "bat"
+brew "zoxide"
 brew "stow"
 brew "tmux"
 brew "yarn"
