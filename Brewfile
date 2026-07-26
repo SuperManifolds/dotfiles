@@ -54,9 +54,6 @@ brew "gitleaks"
 
 # Kubernetes
 brew "helm"
-brew "kind"
-brew "skaffold"
-brew "stern"
 
 # Git utilities
 brew "bfg"
