@@ -3,6 +3,9 @@ font-family = "JetBrains Mono NerdFont Mono"
 background-opacity = 0.95
 background-blur-radius = 25
 macos-option-as-alt = true
+# Integrate the tab bar into the titlebar so it always matches the terminal
+# background — lets the per-host ssh OSC 11 tint show as a tab-color indicator.
+macos-titlebar-style = tabs
 background = 15171a
 cursor-style = bar
 window-padding-x = 4
