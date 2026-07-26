@@ -96,13 +96,7 @@ vim.keymap.set('n', '<leader>x[', function()
     require('trouble').previous({ skip_groups = true, jump = true })
 end, { desc = "Previous trouble" })
 
-vim.keymap.set("i", "<Tab>", function()
-    if require("cmp").visible() then
-        require("cmp").confirm({ select = true })
-    else
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", false)
-    end
-end)
+-- <Tab> completion acceptance is handled by blink.cmp's keymap.
 
 vim.keymap.set('n', 'K', '<cmd>lua vim.lsp.buf.hover()<cr>', with_desc("Show hover"))
 vim.keymap.set('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<cr>', with_desc("Go to definition"))

@@ -1,16 +1,5 @@
 return {
     {
-        'VonHeikemen/lsp-zero.nvim',
-        branch = 'v3.x',
-        lazy = true,
-        config = false,
-        init = function()
-            -- Disable automatic setup, we are doing it manually
-            vim.g.lsp_zero_extend_cmp = 0
-            vim.g.lsp_zero_extend_lspconfig = 0
-        end,
-    },
-    {
         'williamboman/mason.nvim',
         lazy = false,
         config = true,
@@ -29,48 +18,17 @@ return {
         build = ':lua require("go.install").update_all_sync()',
     },
 
-    -- Autocompletion
-    {
-        'hrsh7th/nvim-cmp',
-        event = 'InsertEnter',
-        dependencies = {
-            { 'L3MON4D3/LuaSnip' },
-        },
-        config = function()
-            -- Here is where you configure the autocompletion settings.
-            local lsp_zero = require('lsp-zero')
-            lsp_zero.extend_cmp()
-
-            -- And you can configure cmp even more, if you want to.
-            local cmp = require('cmp')
-            local cmp_action = lsp_zero.cmp_action()
-
-            cmp.setup({
-                formatting = lsp_zero.cmp_format(),
-                mapping = cmp.mapping.preset.insert({
-                    ['<C-u>'] = cmp.mapping.scroll_docs(-4),
-                    ['<C-d>'] = cmp.mapping.scroll_docs(4),
-                    ['<C-f>'] = cmp_action.luasnip_jump_forward(),
-                    ['<C-b>'] = cmp_action.luasnip_jump_backward(),
-                })
-            })
-        end
-    },
-
-    -- LSP
+    -- LSP (native vim.lsp, Neovim 0.11+). Completion capabilities come from
+    -- blink.cmp; server enablement is handled by mason-lspconfig's
+    -- automatic_enable, with per-server settings registered via vim.lsp.config.
     {
         'neovim/nvim-lspconfig',
         cmd = { 'LspInfo', 'LspInstall', 'LspStart' },
         event = { 'BufReadPre', 'BufNewFile' },
         dependencies = {
-            { 'hrsh7th/cmp-nvim-lsp' },
             { 'williamboman/mason-lspconfig.nvim' },
         },
         config = function()
-            -- This is where all the LSP shenanigans will live
-            local lsp_zero = require('lsp-zero')
-            lsp_zero.extend_lspconfig()
-
             -- Filter out "no package metadata" gopls messages
             local original_notify = vim.notify
             vim.notify = function(msg, level, opts)
@@ -80,25 +38,31 @@ return {
                 original_notify(msg, level, opts)
             end
 
-            --- if you want to know more about lsp-zero and mason.nvim
-            --- read this: https://github.com/VonHeikemen/lsp-zero.nvim/blob/v3.x/doc/md/guides/integrate-with-mason-nvim.md
-            lsp_zero.on_attach(function(client, bufnr)
-                -- see :help lsp-zero-keybindings
-                -- to learn the available actions
-                if client.server_capabilities.inlayHintProvider then
-                    vim.g.inlay_hints_visible = true
-                    vim.lsp.inlay_hint.enable(true, { bufnr })
-                end
-                lsp_zero.default_keymaps({ buffer = bufnr })
-            end)
-
+            -- Advertise blink.cmp's completion capabilities to every server.
+            -- Falls back to protocol defaults if blink can't load, so LSP
+            -- (diagnostics/hover/format) keeps working regardless.
+            local ok_blink, blink = pcall(require, 'blink.cmp')
+            local capabilities = ok_blink and blink.get_lsp_capabilities()
+                or vim.lsp.protocol.make_client_capabilities()
+            vim.lsp.config('*', { capabilities = capabilities })
 
             vim.api.nvim_create_autocmd('LspAttach', {
                 callback = function(args)
                     local client = vim.lsp.get_client_by_id(args.client_id)
                     if not client then return end
 
-                    if client.supports_method('textDocument/formatting') then
+                    -- Inlay hints where supported.
+                    if client.server_capabilities.inlayHintProvider then
+                        vim.g.inlay_hints_visible = true
+                        vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
+                    end
+
+                    -- Diagnostic float under cursor (parity with lsp-zero's default keymap).
+                    vim.keymap.set('n', 'gl', vim.diagnostic.open_float,
+                        { buffer = args.buf, desc = 'LSP: line diagnostics' })
+
+                    -- Format on save for any server that provides formatting.
+                    if client:supports_method('textDocument/formatting') then
                         vim.api.nvim_create_autocmd('BufWritePre', {
                             buffer = args.buf,
                             callback = function()
@@ -109,8 +73,119 @@ return {
                 end,
             })
 
+            -- Per-server settings (registered before servers are enabled so they
+            -- merge into the resolved config).
+            vim.lsp.config('ts_ls', {
+                settings = {
+                    typescript = {
+                        inlayHints = {
+                            includeInlayParameterNameHints = 'all',
+                            includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+                            includeInlayFunctionParameterTypeHints = true,
+                            includeInlayVariableTypeHints = true,
+                            includeInlayVariableTypeHintsWhenTypeMatchesName = false,
+                            includeInlayPropertyDeclarationTypeHints = true,
+                            includeInlayFunctionLikeReturnTypeHints = true,
+                            includeInlayEnumMemberValueHints = true,
+                        }
+                    },
+                    javascript = {
+                        inlayHints = {
+                            includeInlayParameterNameHints = 'all',
+                            includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+                            includeInlayFunctionParameterTypeHints = true,
+                            includeInlayVariableTypeHints = true,
+                            includeInlayVariableTypeHintsWhenTypeMatchesName = false,
+                            includeInlayPropertyDeclarationTypeHints = true,
+                            includeInlayFunctionLikeReturnTypeHints = true,
+                            includeInlayEnumMemberValueHints = true,
+                        },
+                        format = {
+                            insertSpaceBeforeFunctionParenthesis = true,
+                            insertSpaceAfterConstructor = true,
+                        }
+                    }
+                }
+            })
 
-            require('mason').setup()
+            vim.lsp.config('rust_analyzer', {
+                settings = {
+                    ['rust-analyzer'] = {
+                        checkOnSave = {
+                            command = "clippy"
+                        },
+                        imports = {
+                            granularity = {
+                                group = "module",
+                            },
+                            prefix = "self",
+                        },
+                        cargo = {
+                            buildScripts = {
+                                enable = true,
+                            },
+                        },
+                        procMacro = {
+                            enable = true
+                        },
+                        inlayHints = {
+                            bindingModeHints = { enable = true },
+                            chainingHints = { enable = true },
+                            closingBraceHints = { enable = true },
+                            closureCaptureHints = { enable = true },
+                            closureReturnTypeHints = { enable = "always" },
+                            discriminantHints = { enable = "always" },
+                            expressionAdjustmentHints = { enable = "always" },
+                            implicitDrops = { enable = true },
+                            lifetimeElisionHints = { enable = "always" },
+                            parameterHints = { enable = true },
+                            rangeExclusiveHints = { enable = true },
+                            typeHints = { enable = true },
+                        },
+                        typing = {
+                            autoClosingAngleBrackets = { enable = true }
+                        }
+                    }
+                }
+            })
+
+            vim.lsp.config('lua_ls', {
+                settings = {
+                    Lua = {
+                        diagnostics = {
+                            globals = { 'vim' }
+                        }
+                    }
+                }
+            })
+
+            vim.lsp.config('yamlls', {
+                settings = {
+                    yaml = {
+                        schemas = {
+                            ["https://json.schemastore.org/github-workflow.json"] =
+                            ".github/workflows/*.yaml"
+                        }
+                    }
+                }
+            })
+
+            -- Python: settings are ready, but pyright is not in ensure_installed
+            -- (matching the previous setup, where no Python server was active).
+            -- Add "pyright" to ensure_installed below to activate it.
+            vim.lsp.config('pyright', {
+                settings = {
+                    python = {
+                        analysis = {
+                            typeCheckingMode = "basic",
+                            autoSearchPaths = true,
+                            useLibraryCodeForTypes = true,
+                            diagnosticMode = "workspace",
+                            stubPath = "/usr/lib/python3.9/site-packages"
+                        }
+                    }
+                }
+            })
 
             require('mason-lspconfig').setup({
                 ensure_installed = {
@@ -131,130 +206,6 @@ return {
                     "zls",
                     "superhtml",
                 },
-                handlers = {
-                    lsp_zero.default_setup,
-                    ts_ls = function()
-                        vim.lsp.config('ts_ls', {
-                            settings = {
-                                typescript = {
-                                    inlayHints = {
-                                        includeInlayParameterNameHints = 'all',
-                                        includeInlayParameterNameHintsWhenArgumentMatchesName = false,
-                                        includeInlayFunctionParameterTypeHints = true,
-                                        includeInlayVariableTypeHints = true,
-                                        includeInlayVariableTypeHintsWhenTypeMatchesName = false,
-                                        includeInlayPropertyDeclarationTypeHints = true,
-                                        includeInlayFunctionLikeReturnTypeHints = true,
-                                        includeInlayEnumMemberValueHints = true,
-                                    }
-                                },
-                                javascript = {
-                                    inlayHints = {
-                                        includeInlayParameterNameHints = 'all',
-                                        includeInlayParameterNameHintsWhenArgumentMatchesName = false,
-                                        includeInlayFunctionParameterTypeHints = true,
-                                        includeInlayVariableTypeHints = true,
-                                        includeInlayVariableTypeHintsWhenTypeMatchesName = false,
-                                        includeInlayPropertyDeclarationTypeHints = true,
-                                        includeInlayFunctionLikeReturnTypeHints = true,
-                                        includeInlayEnumMemberValueHints = true,
-                                    },
-                                    format = {
-                                        insertSpaceBeforeFunctionParenthesis = true,
-                                        insertSpaceAfterConstructor = true,
-                                    }
-                                }
-                            }
-                        })
-                        vim.lsp.enable('ts_ls')
-                    end,
-                    basedpyright = function()
-                        vim.lsp.config('pyright', {
-                            settings = {
-                                python = {
-                                    analysis = {
-                                        typeCheckingMode = "basic",
-                                        autoSearchPaths = true,
-                                        useLibraryCodeForTypes = true,
-                                        diagnosticMode = "workspace",
-                                        stubPath = "/usr/lib/python3.9/site-packages"
-                                    }
-                                }
-                            }
-                        })
-                        vim.lsp.enable('pyright')
-                    end,
-                    rust_analyzer = function()
-                        vim.lsp.config('rust_analyzer', {
-                            settings = {
-                                ['rust-analyzer'] = {
-                                    checkOnSave = {
-                                        command = "clippy"
-                                    },
-                                    imports = {
-                                        granularity = {
-                                            group = "module",
-                                        },
-                                        prefix = "self",
-                                    },
-                                    cargo = {
-                                        buildScripts = {
-                                            enable = true,
-                                        },
-                                    },
-                                    procMacro = {
-                                        enable = true
-                                    },
-                                    inlayHints = {
-                                        bindingModeHints = { enable = true },
-                                        chainingHints = { enable = true },
-                                        closingBraceHints = { enable = true },
-                                        closureCaptureHints = { enable = true },
-                                        closureReturnTypeHints = { enable = "always" },
-                                        discriminantHints = { enable = "always" },
-                                        expressionAdjustmentHints = { enable = "always" },
-                                        implicitDrops = { enable = true },
-                                        lifetimeElisionHints = { enable = "always" },
-                                        parameterHints = { enable = true },
-                                        rangeExclusiveHints = { enable = true },
-                                        typeHints = { enable = true },
-                                    },
-                                    typing = {
-                                        autoClosingAngleBrackets = { enable = true }
-                                    }
-                                }
-                            }
-                        })
-                        vim.lsp.enable('rust_analyzer')
-                    end,
-
-                    lua_ls = function()
-                        vim.lsp.config('lua_ls', {
-                            settings = {
-                                Lua = {
-                                    diagnostics = {
-                                        globals = { 'vim' }
-                                    }
-                                }
-                            }
-                        })
-                        vim.lsp.enable('lua_ls')
-                    end,
-
-                    yamlls = function()
-                        vim.lsp.config('yamlls', {
-                            settings = {
-                                yaml = {
-                                    schemas = {
-                                        ["https://json.schemastore.org/github-workflow.json"] =
-                                        ".github/workflows/*.yaml"
-                                    }
-                                }
-                            }
-                        })
-                        vim.lsp.enable('yamlls')
-                    end
-                }
             })
 
             require('go').setup {
@@ -275,13 +226,13 @@ return {
                             directoryFilters = { "-vendor" },
                         }
                     },
-                    capabilities = {
+                    capabilities = vim.tbl_deep_extend('force', capabilities, {
                         workspace = {
                             didChangeWatchedFiles = {
                                 dynamicRegistration = true,
                             },
                         },
-                    },
+                    }),
                 },
             }
 
@@ -309,7 +260,6 @@ return {
                 severity_sort = true,
                 update_in_insert = true,
             })
-
 
             vim.lsp.config('sourcekit', {
                 cmd = { '/Library/Developer/CommandLineTools/usr/bin/sourcekit-lsp' },
