@@ -107,3 +107,4 @@ npm_packages: []
 
 go_packages:
   - github.com/segmentio/golines@latest
+  - github.com/joshmedeski/sesh/v2@latest
