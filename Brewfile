@@ -33,6 +33,7 @@ brew "zoxide"
 brew "eza"
 brew "stow"
 brew "tmux"
+brew "sesh"    # smart tmux session manager (zoxide + tmux, fzf picker)
 brew "yarn"
 brew "yt-dlp"
 brew "artginzburg/tap/sudo-touchid"
