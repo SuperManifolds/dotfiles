@@ -3,8 +3,14 @@
 # Please adapt and uncomment the following lines:
 	name = Alex Sørlie
 	email = alex@sorlie.io
+	signingkey = ~/.ssh/id_ed25519.pub
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	allowedSignersFile = ~/.config/git/allowed_signers
 [commit]
 	verbose = true
+	gpgsign = true
 [core]
 	hooksPath = ~/.config/git/hooks
 	# delta when available, plain less otherwise (keeps git working on
@@ -16,6 +22,7 @@
 	sort = -committerdate
 [tag]
 	sort = version:refname
+	gpgsign = true
 [init]
 	defaultBranch = main
 [diff]
