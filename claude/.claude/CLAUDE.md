@@ -14,6 +14,7 @@ _Global defaults. A project's CLAUDE.md, skills, or established conventions win 
 
 - For any web search, scrape, or page fetch, prefer the `firecrawl` skills (`firecrawl-search`, `firecrawl-scrape`, `firecrawl-crawl`, etc.) over the built-in `WebSearch`/`WebFetch` tools.
 - Fall back to the built-in tools only when a firecrawl skill is unavailable or fails.
+- When researching a topic where firsthand user experience matters (tool/product comparisons, recommendations, troubleshooting, "is X worth it"), incorporate Reddit discussion: find relevant threads with `firecrawl-search` (built-in `WebSearch` omits Reddit), then read them with the `reddit-thread` skill. Firecrawl cannot scrape Reddit, so `reddit-thread` is the reader. Cite the threads used.
 
 ## Surgical Changes
 
