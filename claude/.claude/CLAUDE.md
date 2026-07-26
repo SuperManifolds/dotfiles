@@ -10,6 +10,11 @@ _Global defaults. A project's CLAUDE.md, skills, or established conventions win 
 - If multiple interpretations exist, present them — don't pick silently.
 - Ask clarifying questions if a key spec is missing that blocks correctness.
 
+## Web Access
+
+- For any web search, scrape, or page fetch, prefer the `firecrawl` skills (`firecrawl-search`, `firecrawl-scrape`, `firecrawl-crawl`, etc.) over the built-in `WebSearch`/`WebFetch` tools.
+- Fall back to the built-in tools only when a firecrawl skill is unavailable or fails.
+
 ## Surgical Changes
 
 - Touch only what the task requires. Don't "improve" adjacent code, comments, or formatting.
