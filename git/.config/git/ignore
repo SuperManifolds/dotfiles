@@ -1,0 +1,14 @@
+# Global gitignore (XDG: ~/.config/git/ignore). Machine/editor cruft and
+# personal artifacts that should never be committed to any repo.
+
+# macOS
+.DS_Store
+._*
+
+# Editor swap files
+*.swp
+*.swo
+
+# Claude Code local artifacts (never commit into other repos)
+**/.claude/settings.local.json
+CLAUDE.md

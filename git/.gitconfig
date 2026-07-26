@@ -7,6 +7,9 @@
 	verbose = true
 [core]
 	hooksPath = ~/.config/git/hooks
+	# delta when available, plain less otherwise (keeps git working on
+	# machines where delta isn't installed).
+	pager = delta 2>/dev/null || less
 [column]
 	ui = auto
 [branch]
@@ -37,12 +40,21 @@
 	autoSquash = true
 	autoStash = true
 	updateRefs = true
+	missingCommitsCheck = error
 [merge]
 	conflictstyle = zdiff3
 [pull]
 	rebase = true
 [format]
 	signoff = true
+[interactive]
+	# Colorize `git add -p` via delta; fall back to plain when absent.
+	diffFilter = delta --color-only 2>/dev/null || cat
+[delta]
+	navigate = true
+[alias]
+	# Structural (AST-aware) diff on demand: `git dft`
+	dft = -c diff.external=difft diff
 [credential "https://github.com"]
 	helper = !PATH=\"/opt/homebrew/bin:$PATH\" gh auth git-credential
 [credential "https://gist.github.com"]

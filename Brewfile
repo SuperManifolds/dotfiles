@@ -63,6 +63,8 @@ brew "helm"
 # Git utilities
 brew "bfg"
 brew "git-filter-repo"
+brew "git-delta"    # syntax-highlighting pager (core.pager)
+brew "difftastic"   # structural diff on demand (git dft)
 
 # Other utilities
 brew "unar"

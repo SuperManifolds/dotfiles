@@ -17,6 +17,7 @@ pacman_packages:
   - fish
   - git
   - git-delta
+  - difftastic
   - git-filter-repo
   - github-cli
   - gnupg
