@@ -23,6 +23,8 @@ dnf_packages:
   - helm
   - git-filter-repo
   - git-delta
+  - eza
+  - k9s
   - unar
 
 dnf_desktop_packages:

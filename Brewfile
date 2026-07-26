@@ -30,6 +30,7 @@ brew "fzf"
 brew "fd"
 brew "bat"
 brew "zoxide"
+brew "eza"
 brew "stow"
 brew "tmux"
 brew "yarn"
@@ -59,6 +60,7 @@ brew "gitleaks"
 
 # Kubernetes
 brew "helm"
+brew "k9s"
 
 # Git utilities
 brew "bfg"
