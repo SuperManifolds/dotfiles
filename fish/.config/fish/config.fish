@@ -49,6 +49,13 @@ if type -q labctl
     labctl completion fish | source
 end
 
+# mise: scoped to work projects only. The global mise config is intentionally
+# empty, so activation is inert in personal dirs; it only manages tools/env
+# inside a project that declares a .mise.toml / .tool-versions (work repos).
+if type -q mise
+    mise activate fish | source
+end
+
 # --- Aliases -------------------------------------------------------------
 # Claude Code with permission prompts disabled. Forwards extra args.
 alias clauded='claude --dangerously-skip-permissions'

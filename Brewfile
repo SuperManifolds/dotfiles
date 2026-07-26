@@ -45,6 +45,9 @@ brew "swiftly"
 # LSP & formatters (used by Claude Code plugins/hooks)
 brew "gopls"
 brew "biome"
+# Go linter — installed natively (not via mise) so it is available everywhere,
+# independent of work-project mise activation.
+brew "golangci-lint"
 
 # Secret scanning (global git pre-commit hook)
 brew "gitleaks"

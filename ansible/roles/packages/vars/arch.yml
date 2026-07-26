@@ -21,6 +21,7 @@ pacman_packages:
   - github-cli
   - gnupg
   - go
+  - golangci-lint
   - helm
   - jq
   - k9s

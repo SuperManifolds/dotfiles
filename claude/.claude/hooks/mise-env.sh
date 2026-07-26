@@ -10,7 +10,21 @@
 [ -n "$CLAUDE_ENV_FILE" ] || exit 0
 command -v mise >/dev/null 2>&1 || exit 0
 
-# `mise env` resolves the environment for the current working directory (the
-# hook runs in the session/new dir), independent of shell activation.
-mise env -s bash 2>/dev/null > "$CLAUDE_ENV_FILE"
+# mise is scoped to work projects only (the global mise config is intentionally
+# empty). Bridge its environment into the Bash tool only when the current
+# directory tree declares a mise config; otherwise clear the file so mise never
+# influences personal/non-work sessions.
+dir="$PWD"
+while :; do
+  if [ -e "$dir/.mise.toml" ] || [ -e "$dir/mise.toml" ] || [ -e "$dir/.tool-versions" ]; then
+    # `mise env` resolves the environment for the current working directory,
+    # independent of interactive-shell activation.
+    mise env -s bash 2>/dev/null > "$CLAUDE_ENV_FILE"
+    exit 0
+  fi
+  [ "$dir" = "/" ] && break
+  dir="$(dirname "$dir")"
+done
+
+: > "$CLAUDE_ENV_FILE"
 exit 0

@@ -44,16 +44,10 @@
     cmd: rustup default stable
   changed_when: true
 
-# Dev tools (via mise)
-- name: Install tools via mise
-  ansible.builtin.command:
-    cmd: "mise use -g {{ item }}"
-  loop:
-    - kind
-    - stern
-    - skaffold
-    - golangci-lint
-  changed_when: true
+# Note: mise is intentionally NOT used for globally-installed tools. It is
+# scoped to work projects that declare a .mise.toml (see fish config.fish).
+# golangci-lint is installed natively (pacman_packages); kind/stern/skaffold
+# come from each work repo's mise config.
 
 # NPM global packages
 - name: Install global NPM packages

@@ -17,13 +17,10 @@
     - install_desktop | default(true)
     - not jetbrains_font.stat.exists
 
-# Dev tools (via mise)
-- name: Install tools via mise
-  ansible.builtin.command:
-    cmd: mise use -g {{ item }}
-  loop:
-    - golangci-lint
-  changed_when: true
+# Note: mise is intentionally NOT used for globally-installed tools. It is
+# scoped to work projects that declare a .mise.toml (see fish config.fish).
+# golangci-lint is installed via Homebrew (Brewfile); kind/stern/skaffold come
+# from each work repo's mise config.
 
 # Install Rust stable toolchain
 - name: Install Rust stable toolchain

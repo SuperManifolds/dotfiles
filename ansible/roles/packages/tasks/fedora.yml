@@ -120,16 +120,17 @@
   when: not mise_installed.stat.exists
   changed_when: true
 
-# Dev tools (via mise)
-- name: Install tools via mise
-  ansible.builtin.command:
-    cmd: "{{ ansible_env.HOME }}/.local/bin/mise use -g {{ item }}"
-  loop:
-    - kind
-    - stern
-    - skaffold
-    - golangci-lint
-  changed_when: true
+# Note: mise is intentionally NOT used for globally-installed tools. It is
+# scoped to work projects that declare a .mise.toml (see fish config.fish).
+# kind/stern/skaffold come from each work repo's mise config. golangci-lint is
+# installed natively via the upstream install script (no reliable dnf package).
+- name: Install golangci-lint
+  ansible.builtin.shell:
+    cmd: >-
+      curl -sSfL
+      https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh
+      | sh -s -- -b {{ ansible_env.HOME }}/go/bin
+    creates: "{{ ansible_env.HOME }}/go/bin/golangci-lint"
 
 # Rustup
 - name: Check if rustup is installed
