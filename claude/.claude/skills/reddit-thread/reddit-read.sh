@@ -44,9 +44,20 @@ fi
 
 command -v agent-browser >/dev/null || { echo "error: agent-browser not installed" >&2; exit 1; }
 
-# Open the thread itself with the stealth patch — this both passes the challenge
-# and lands us same-origin for the .json fetch. --headed is less detectable.
-agent-browser open "$URL" --init-script "$STEALTH" --headed >/dev/null 2>&1 || true
+# Reddit's Fastly edge blocks the "HeadlessChrome" User-Agent token, so run
+# fully headless (no window — it never steals focus) but present a normal
+# Chrome UA. Launch blank first with the stealth patch, read the real browser
+# version (stealth.js has already stripped "Headless" from navigator.userAgent),
+# set that as the request header, then navigate. Same session lands us
+# same-origin for the .json fetch.
+agent-browser open --init-script "$STEALTH" >/dev/null 2>&1 || true
+UA=$(agent-browser eval --json --stdin <<<'(async () => navigator.userAgent)()' 2>/dev/null \
+     | python3 -c 'import sys,json; print(json.load(sys.stdin)["data"]["result"])' 2>/dev/null || true)
+# Strip the "Headless" token that Fastly blocks (init-script patches the page's
+# navigator.userAgent, but not this pre-navigation blank page, so strip it here).
+UA="${UA//HeadlessChrome/Chrome}"
+[[ -n "$UA" ]] && agent-browser set headers "{\"User-Agent\": \"$UA\"}" >/dev/null 2>&1 || true
+agent-browser open "$URL" >/dev/null 2>&1 || true
 agent-browser wait --load networkidle >/dev/null 2>&1 || true
 
 # In-session extraction (script via --stdin, result via --json envelope).

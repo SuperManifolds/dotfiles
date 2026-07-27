@@ -1,6 +1,6 @@
 ---
 name: reddit-thread
-description: Reliably read the full content of a Reddit discussion thread (post + entire nested comment tree) as clean markdown or JSON. Use whenever the user gives a reddit.com / old.reddit.com thread URL, or asks to read, summarize, or extract a Reddit thread's comments. Works where fetch/scrape fail — Reddit returns 403 to plain requests and blocks headless browsers; this drives a real Chrome (via agent-browser) that passes Reddit's JS challenge, then reads the thread's .json from inside the authenticated session. No API key required.
+description: Reliably read the full content of a Reddit discussion thread (post + entire nested comment tree) as clean markdown or JSON. Use whenever the user gives a reddit.com / old.reddit.com thread URL, or asks to read, summarize, or extract a Reddit thread's comments. Works where fetch/scrape fail — Reddit returns 403 to plain requests; this drives Chrome (via agent-browser) headless with a spoofed User-Agent that passes Reddit's Fastly JS challenge, then reads the thread's .json from inside the session. Runs windowless — never steals focus. No API key required.
 allowed-tools:
   - Bash(agent-browser:*)
   - Bash(*/reddit-read.sh:*)
@@ -35,7 +35,8 @@ Accepts `www.`, `old.`, or `np.` reddit URLs (normalized to `www.`).
 | `old.reddit.com` in a plain automated browser | **403** "blocked by network security" |
 | Firecrawl hosted scrape | works, but costs credits (and here: 0 left) |
 | CDP browser, no stealth | **blocked** — `navigator.webdriver === true` fails Reddit's `js_challenge` |
-| **Real Chrome + stealth init-script, then in-session `.json` fetch** | ✅ **200**, full structured thread |
+| Headless Chrome, default UA | **403** — Fastly blocks the `HeadlessChrome` UA token at the edge |
+| **Headless Chrome + real-Chrome UA header + stealth, in-session `.json` fetch** | ✅ **200**, full thread, no window |
 
 The legacy Reddit API key is not an option (no longer issued). The current
 free OAuth "script app" API still exists but requires registering an app;
@@ -43,10 +44,13 @@ this skill deliberately avoids that and needs no credentials.
 
 ## How it works
 
-1. `agent-browser` launches real **Chrome for Testing** and opens the thread
-   with `stealth.js` as an `--init-script`. That script hides the automation
-   tells (chiefly `navigator.webdriver`) *before* page JS runs, so Reddit's
-   Fastly `js_challenge` passes and sets normal session cookies.
+1. `agent-browser` launches **Chrome for Testing** *headless* — no window, so
+   it never steals focus — and overrides the `User-Agent` request header to
+   strip the `HeadlessChrome` token that Fastly blocks at the edge. `stealth.js`
+   runs as an `--init-script`, hiding the remaining automation tells
+   (`navigator.webdriver`, and keeping the page's `navigator.userAgent` in sync)
+   *before* page JS runs, so Reddit's Fastly `js_challenge` passes and sets
+   normal session cookies.
 2. From inside that authenticated, same-origin page, it `fetch()`es
    `<permalink>.json?limit=500&raw_json=1` — returning the full comment tree
    as clean structured data (no fragile DOM/lazy-load scraping).
@@ -62,7 +66,7 @@ deleted/removed nodes or very deep stubs.
 - **"extraction failed / challenge may not have passed"** — rerun (challenges
   are occasionally flaky). Inspect with `agent-browser get text body`; if it
   says *"blocked by network security"*, the challenge didn't pass — the IP may
-  be rate-limited; wait, or retry `--headed`.
+  be rate-limited; wait and retry.
 - Keep the browser warm: the first call passes the challenge; subsequent calls
   in the same session reuse cookies and are faster.
 - Files: `reddit-read.sh` (driver), `stealth.js` (fingerprint patch).
