@@ -3,12 +3,7 @@ return { {
     version = "*",
     dependencies = {
         { "folke/snacks.nvim" },
-        {
-            "nvim-treesitter/nvim-treesitter",
-            opts = {
-                ensure_installed = { "go" },
-            },
-        },
+        { "nvim-treesitter/nvim-treesitter" },
     },
     build = "go install github.com/lotusirous/gostdsym/stdsym@latest", -- optional
     cmd = { "GoDoc" },                                                 -- optional

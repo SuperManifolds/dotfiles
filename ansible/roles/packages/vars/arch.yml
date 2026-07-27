@@ -40,6 +40,7 @@ pacman_packages:
   - starship
   - stow
   - tmux
+  - tree-sitter-cli
   - unarchiver
   - xh
   - yt-dlp

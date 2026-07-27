@@ -17,6 +17,7 @@ brew "jq"
 brew "mariadb"
 brew "mariadb-connector-c"
 brew "neovim"
+brew "tree-sitter-cli" # nvim-treesitter `main` branch parser compiler
 brew "netcat"
 brew "node"
 brew "opentofu"

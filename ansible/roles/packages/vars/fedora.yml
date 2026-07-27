@@ -25,6 +25,7 @@ dnf_packages:
   - git-delta
   - eza
   - k9s
+  - tree-sitter-cli
   - unar
 
 dnf_desktop_packages:

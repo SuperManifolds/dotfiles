@@ -68,11 +68,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
 
 
-vim.api.nvim_create_autocmd("BufEnter", {
-    pattern = "*.templ",
-    callback = function() vim.cmd("TSBufEnable highlight") end
-})
-
 -- Briefly highlight yanked text (native, replaces a plugin/manual autocmd).
 vim.api.nvim_create_autocmd("TextYankPost", {
     callback = function() vim.hl.on_yank() end,
