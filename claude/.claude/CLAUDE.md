@@ -12,9 +12,13 @@ _Global defaults. A project's CLAUDE.md, skills, or established conventions win 
 
 ## Web Access
 
-- For any web search, scrape, or page fetch, prefer the `firecrawl` skills (`firecrawl-search`, `firecrawl-scrape`, `firecrawl-crawl`, etc.) over the built-in `WebSearch`/`WebFetch` tools.
-- Fall back to the built-in tools only when a firecrawl skill is unavailable or fails.
-- When researching a topic where firsthand user experience matters (tool/product comparisons, recommendations, troubleshooting, "is X worth it"), incorporate Reddit discussion: find relevant threads with `firecrawl-search` (built-in `WebSearch` omits Reddit), then read them with the `reddit-thread` skill. Firecrawl cannot scrape Reddit, so `reddit-thread` is the reader. Cite the threads used.
+- Prefer `firecrawl` skills (`firecrawl-search`, `firecrawl-scrape`, `firecrawl-crawl`, …) over built-in `WebSearch`/`WebFetch`. Fall back to built-ins only when firecrawl is unavailable or fails.
+- When a fetch returns empty, truncated, an app shell, a login/consent wall, or a bot challenge (common on JS-rendered pages), escalate — never fabricate page content. If every tool fails, say so and name what you tried.
+  - Thin/empty `WebFetch` → `firecrawl-scrape` (renders SPAs).
+  - Needs clicks/forms/pagination/auth → `firecrawl-interact`.
+  - Firecrawl can't handle it (heavy JS, bot challenge, site JSON API) → `agent-browser` (real Chrome CLI; `agent-browser skills get core` for commands).
+  - Reddit (firecrawl can't scrape it) → `firecrawl-search` to find, `reddit-thread` skill to read (`reddit-search.sh` / `reddit-read.sh`).
+- For firsthand-experience topics (comparisons, recommendations, troubleshooting, "is X worth it"), pull in Reddit discussion and cite the threads used.
 
 ## Surgical Changes
 
