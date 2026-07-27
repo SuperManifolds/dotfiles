@@ -11,6 +11,9 @@ return {
             -- Lua implementation is first-class; fast enough for LSP completion.
             fuzzy = { implementation = 'lua' },
 
+            -- Signature help while typing (replaces lsp_signature.nvim).
+            signature = { enabled = true },
+
             -- LuaSnip as the snippet engine (neogen/luasnip completions keep working).
             snippets = { preset = 'luasnip' },
 

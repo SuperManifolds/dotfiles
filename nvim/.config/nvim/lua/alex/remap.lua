@@ -116,3 +116,10 @@ vim.api.nvim_set_keymap("n", "<Leader>doc", ":lua require('neogen').generate()<C
 vim.keymap.set("n", "<leader>gd", function()
     vim.cmd("GoDoc " .. vim.fn.expand("<cword>"))
 end, with_desc("Open GoDoc"))
+
+-- Toggle multi-line diagnostics for the current line (native, 0.11+).
+-- Default stays inline virtual_text; this shows the full message(s) below.
+vim.keymap.set("n", "<leader>dl", function()
+    local enabled = vim.diagnostic.config().virtual_lines
+    vim.diagnostic.config({ virtual_lines = not enabled and { current_line = true } or false })
+end, with_desc("Toggle diagnostic virtual lines"))
