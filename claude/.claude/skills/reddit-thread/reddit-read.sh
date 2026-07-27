@@ -17,7 +17,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-STEALTH="$SCRIPT_DIR/stealth.js"   # init-script: strip automation fingerprints
+source "$SCRIPT_DIR/browser.sh"    # reddit_open: headless challenge-passing session
 EXTRACT="$SCRIPT_DIR/extract.js"   # in-page thread fetch + comment-tree walk
 RENDER="$SCRIPT_DIR/render.py"     # structured result -> markdown / raw JSON
 
@@ -51,23 +51,8 @@ if [[ "$URL" != http*://www.reddit.com/* ]]; then
   exit 2
 fi
 
-command -v agent-browser >/dev/null || { echo "error: agent-browser not installed" >&2; exit 1; }
-
-# Reddit's Fastly edge blocks the "HeadlessChrome" User-Agent token, so run
-# fully headless (no window — it never steals focus) but present a normal
-# Chrome UA. Launch blank first with the stealth patch, read the real browser
-# version (stealth.js has already stripped "Headless" from navigator.userAgent),
-# set that as the request header, then navigate. Same session lands us
-# same-origin for the .json fetch.
-agent-browser open --init-script "$STEALTH" >/dev/null 2>&1 || true
-UA=$(agent-browser eval --json --stdin <<<'(async () => navigator.userAgent)()' 2>/dev/null \
-     | python3 -c 'import sys,json; print(json.load(sys.stdin)["data"]["result"])' 2>/dev/null || true)
-# Strip the "Headless" token that Fastly blocks (init-script patches the page's
-# navigator.userAgent, but not this pre-navigation blank page, so strip it here).
-UA="${UA//HeadlessChrome/Chrome}"
-[[ -n "$UA" ]] && agent-browser set headers "{\"User-Agent\": \"$UA\"}" >/dev/null 2>&1 || true
-agent-browser open "$URL" >/dev/null 2>&1 || true
-agent-browser wait --load networkidle >/dev/null 2>&1 || true
+# Open a headless, challenge-passing session on the thread (see browser.sh).
+reddit_open "$URL"
 
 # In-session extraction: seed the top-level fetch size as a page global, then
 # run extract.js inside the challenge-passed session. Its structured result
