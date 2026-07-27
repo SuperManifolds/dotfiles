@@ -6,8 +6,18 @@
 (async () => {
 	const path = globalThis.__REDDIT_SEARCH_URL;
 	const query = globalThis.__REDDIT_QUERY || "";
-	const res = await fetch(path);
-	if (res.status !== 200) return { status: res.status, query, results: [] };
+	// Retry a few times in case the fresh-session challenge cookies are still
+	// settling (a non-200 on the first hit).
+	const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+	let res = null;
+	for (let i = 0; i < 6; i++) {
+		res = await fetch(path);
+		if (res.status === 200) break;
+		await sleep(1200);
+	}
+	if (!res || res.status !== 200) {
+		return { status: res ? res.status : 0, query, results: [] };
+	}
 	const j = await res.json();
 	const results = (j.data.children || [])
 		.filter((c) => c.kind === "t3")

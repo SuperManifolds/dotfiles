@@ -7,13 +7,25 @@
 // The driver seeds `globalThis.__REDDIT_LIMIT` (top-level fetch size) before
 // this runs; it falls back to 500.
 (async () => {
-	const permalink = location.pathname.replace(/\/$/, "");
-	const linkId = permalink.split("/")[4];
+	const linkId = location.pathname.split("/")[4]; // base36 thread id
 	const limit = globalThis.__REDDIT_LIMIT || 500;
 	const raw = "&raw_json=1";
-	const base = await (
-		await fetch(permalink + ".json?limit=" + limit + raw)
-	).json();
+	// Fetch by canonical id (/comments/<id>.json) rather than the current path,
+	// so a wrong/missing slug or an in-flight redirect can't 404 us. Retry a few
+	// times in case the fresh-session challenge cookies are still settling.
+	const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+	let base = null;
+	for (let i = 0; i < 6; i++) {
+		const res = await fetch(
+			"/comments/" + linkId + ".json?limit=" + limit + raw,
+		);
+		if (res.status === 200) {
+			base = await res.json();
+			break;
+		}
+		await sleep(1200);
+	}
+	if (!base) throw new Error("thread fetch failed (id " + linkId + ")");
 	const post = base[0].data.children[0].data;
 
 	const byId = {};
@@ -76,7 +88,7 @@
 	}
 
 	return {
-		url: location.origin + permalink,
+		url: "https://www.reddit.com" + post.permalink,
 		title: post.title,
 		author: post.author,
 		score: post.score,

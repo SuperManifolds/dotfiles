@@ -54,17 +54,17 @@ else
   NAV="https://www.reddit.com/search/?q=${Q}"
 fi
 
-reddit_open "$NAV"
-
 # Seed the search path + human query as page globals (JSON-encoded so quotes in
-# the query are safe), then run search.js in-session; render.py-style output.
-ENVELOPE=$(
-  {
-    printf 'globalThis.__REDDIT_SEARCH_URL=%s; globalThis.__REDDIT_QUERY=%s;\n' \
-      "$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$SEARCH_PATH")" \
-      "$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$QUERY")"
-    cat "$SEARCH_JS"
-  } | agent-browser eval --json --stdin
+# the query are safe), then run search.js in-session. search.js retries the fetch
+# itself, so a single attempt here is enough; `|| true` keeps a failed eval from
+# tripping `set -e` before render-search.py can report it.
+SEED=$(
+  printf 'globalThis.__REDDIT_SEARCH_URL=%s; globalThis.__REDDIT_QUERY=%s;\n' \
+    "$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$SEARCH_PATH")" \
+    "$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$QUERY")"
 )
+reddit_open "$NAV"
+ENVELOPE=$({ printf '%s\n' "$SEED"; cat "$SEARCH_JS"; } \
+           | agent-browser eval --json --stdin 2>/dev/null || true)
 
 MODE="$MODE" python3 "$RENDER" "$ENVELOPE"

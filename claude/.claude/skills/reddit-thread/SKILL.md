@@ -78,9 +78,12 @@ this skill deliberately avoids that and needs no credentials.
    (`navigator.webdriver`, and keeping the page's `navigator.userAgent` in sync)
    *before* page JS runs, so Reddit's Fastly `js_challenge` passes and sets
    normal session cookies.
-2. From inside that authenticated, same-origin page, it `fetch()`es
-   `<permalink>.json?limit=500&raw_json=1` — returning the full comment tree
-   as clean structured data (no fragile DOM/lazy-load scraping).
+2. From inside that authenticated, same-origin page, it `fetch()`es the thread
+   by canonical id — `/comments/<id>.json?limit=500&raw_json=1` — so a wrong or
+   missing slug/subreddit (or an in-flight redirect) can't 404 it. Returns the
+   full comment tree as clean structured data (no fragile DOM/lazy-load
+   scraping). The fetch retries briefly if a fresh session's challenge cookies
+   are still settling.
 3. `kind:"more"` stubs (deep/collapsed threads) are resolved in batches via
    `/api/morechildren.json`, which also works with the session cookies.
 4. Output is rendered as nested markdown (or `--json`).

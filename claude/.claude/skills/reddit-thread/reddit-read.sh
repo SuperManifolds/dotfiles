@@ -51,16 +51,14 @@ if [[ "$URL" != http*://www.reddit.com/* ]]; then
   exit 2
 fi
 
-# Open a headless, challenge-passing session on the thread (see browser.sh).
+# Open a headless, challenge-passing session (see browser.sh) and run extract.js
+# in-session: seed the top-level fetch size as a page global, then fetch. The
+# structured result comes back in agent-browser's --json envelope, which
+# render.py turns into markdown (or raw JSON when MODE=json). extract.js retries
+# the fetch itself, so a single attempt here is enough; `|| true` keeps a failed
+# eval from tripping `set -e` before render.py can report it.
 reddit_open "$URL"
-
-# In-session extraction: seed the top-level fetch size as a page global, then
-# run extract.js inside the challenge-passed session. Its structured result
-# comes back in agent-browser's --json envelope, which render.py turns into
-# markdown (or raw JSON when MODE=json).
-ENVELOPE=$(
-  { printf 'globalThis.__REDDIT_LIMIT=%s;\n' "$LIMIT"; cat "$EXTRACT"; } \
-    | agent-browser eval --json --stdin
-)
+ENVELOPE=$({ printf 'globalThis.__REDDIT_LIMIT=%s;\n' "$LIMIT"; cat "$EXTRACT"; } \
+           | agent-browser eval --json --stdin 2>/dev/null || true)
 
 MODE="$MODE" python3 "$RENDER" "$ENVELOPE"
