@@ -15,6 +15,7 @@ return {
             words = { enabled = true },                     -- replaces stcursorword (LSP-reference based)
             picker = { enabled = true },                    -- replaces telescope
             scope = { enabled = true },
+            bufdelete = { enabled = true },                 -- layout-preserving buffer close (<A-w>)
         },
         keys = {
             { "<leader>ff", function() Snacks.picker.files() end,   desc = "Find files" },

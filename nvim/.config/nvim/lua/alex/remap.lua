@@ -33,41 +33,32 @@ map('n', 's', '<c-w>', opts)
 vim.api.nvim_set_keymap('t', '<Esc>', '<C-\\><C-n>', { noremap = true, silent = true })
 
 -- Move to previous/next
-map('n', '<A-,>', '<Cmd>BufferPrevious<CR>', with_desc("Move to previous buffer"))
-map('n', '<A-.>', '<Cmd>BufferNext<CR>', with_desc("Move to next buffer"))
+map('n', '<A-,>', '<Cmd>BufferLineCyclePrev<CR>', with_desc("Move to previous buffer"))
+map('n', '<A-.>', '<Cmd>BufferLineCycleNext<CR>', with_desc("Move to next buffer"))
 -- Re-order to previous/next
-map('n', '<A-<>', '<Cmd>BufferMovePrevious<CR>', with_desc("Re-order to previous buffer"))
-map('n', '<A->>', '<Cmd>BufferMoveNext<CR>', with_desc("Re-order to next buffer"))
+map('n', '<A-<>', '<Cmd>BufferLineMovePrev<CR>', with_desc("Re-order to previous buffer"))
+map('n', '<A->>', '<Cmd>BufferLineMoveNext<CR>', with_desc("Re-order to next buffer"))
 -- Goto buffer in position...
-map('n', '<A-1>', '<Cmd>BufferGoto 1<CR>', with_desc("Goto buffer in position 1"))
-map('n', '<A-2>', '<Cmd>BufferGoto 2<CR>', with_desc("Goto buffer in position 2"))
-map('n', '<A-3>', '<Cmd>BufferGoto 3<CR>', with_desc("Goto buffer in position 3"))
-map('n', '<A-4>', '<Cmd>BufferGoto 4<CR>', with_desc("Goto buffer in position 4"))
-map('n', '<A-5>', '<Cmd>BufferGoto 5<CR>', with_desc("Goto buffer in position 5"))
-map('n', '<A-6>', '<Cmd>BufferGoto 6<CR>', with_desc("Goto buffer in position 6"))
-map('n', '<A-7>', '<Cmd>BufferGoto 7<CR>', with_desc("Goto buffer in position 7"))
-map('n', '<A-8>', '<Cmd>BufferGoto 8<CR>', with_desc("Goto buffer in position 8"))
-map('n', '<A-9>', '<Cmd>BufferGoto 9<CR>', with_desc("Goto buffer in position 9"))
-map('n', '<A-0>', '<Cmd>BufferLast<CR>', with_desc("Goto last buffer"))
+map('n', '<A-1>', '<Cmd>BufferLineGoToBuffer 1<CR>', with_desc("Goto buffer in position 1"))
+map('n', '<A-2>', '<Cmd>BufferLineGoToBuffer 2<CR>', with_desc("Goto buffer in position 2"))
+map('n', '<A-3>', '<Cmd>BufferLineGoToBuffer 3<CR>', with_desc("Goto buffer in position 3"))
+map('n', '<A-4>', '<Cmd>BufferLineGoToBuffer 4<CR>', with_desc("Goto buffer in position 4"))
+map('n', '<A-5>', '<Cmd>BufferLineGoToBuffer 5<CR>', with_desc("Goto buffer in position 5"))
+map('n', '<A-6>', '<Cmd>BufferLineGoToBuffer 6<CR>', with_desc("Goto buffer in position 6"))
+map('n', '<A-7>', '<Cmd>BufferLineGoToBuffer 7<CR>', with_desc("Goto buffer in position 7"))
+map('n', '<A-8>', '<Cmd>BufferLineGoToBuffer 8<CR>', with_desc("Goto buffer in position 8"))
+map('n', '<A-9>', '<Cmd>BufferLineGoToBuffer 9<CR>', with_desc("Goto buffer in position 9"))
+map('n', '<A-0>', '<Cmd>BufferLineGoToBuffer -1<CR>', with_desc("Goto last buffer"))
 -- Pin/unpin buffer
-map('n', '<A-p>', '<Cmd>BufferPin<CR>', with_desc("Pin/unpin buffer"))
--- Close buffer
-map('n', '<A-w>', '<Cmd>BufferClose<CR>', with_desc("Close buffer"))
--- Wipeout buffer
---                 :BufferWipeout
--- Close commands
---                 :BufferCloseAllButCurrent
---                 :BufferCloseAllButPinned
---                 :BufferCloseAllButCurrentOrPinned
---                 :BufferCloseBuffersLeft
---                 :BufferCloseBuffersRight
+map('n', '<A-p>', '<Cmd>BufferLineTogglePin<CR>', with_desc("Pin/unpin buffer"))
+-- Close buffer (snacks.bufdelete keeps the window layout intact)
+map('n', '<A-w>', '<Cmd>lua Snacks.bufdelete()<CR>', with_desc("Close buffer"))
 -- Magic buffer-picking mode
-map('n', '<C-p>', '<Cmd>BufferPick<CR>', with_desc("Magic buffer-picking mode"))
+map('n', '<C-p>', '<Cmd>BufferLinePick<CR>', with_desc("Magic buffer-picking mode"))
 -- Sort automatically by...
-map('n', '<Space>bb', '<Cmd>BufferOrderByBufferNumber<CR>', with_desc("Sort automatically by buffer number"))
-map('n', '<Space>bd', '<Cmd>BufferOrderByDirectory<CR>', with_desc("Sort automatically by directory"))
-map('n', '<Space>bl', '<Cmd>BufferOrderByLanguage<CR>', with_desc("Sort automatically by language"))
-map('n', '<Space>bw', '<Cmd>BufferOrderByWindowNumber<CR>', with_desc("Sort automatically by window number"))
+map('n', '<Space>bb', '<Cmd>lua require("bufferline").sort_by("id")<CR>', with_desc("Sort by buffer number"))
+map('n', '<Space>bd', '<Cmd>BufferLineSortByDirectory<CR>', with_desc("Sort by directory"))
+map('n', '<Space>bl', '<Cmd>BufferLineSortByExtension<CR>', with_desc("Sort by extension/language"))
 vim.keymap.set('n', '<leader>S', '<cmd>lua require("spectre").toggle()<CR>', {
     desc = "Toggle Spectre"
 })
