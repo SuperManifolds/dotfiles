@@ -11,6 +11,12 @@
 
 _REDDIT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Isolate the browser per Claude Code instance so concurrent instances don't
+# drive or close each other's session. Respects an inherited AGENT_BROWSER_SESSION
+# (set in fish config), else derives one from the instance id, else a shared
+# default. The session stays warm across calls within an instance.
+export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-claude-${CLAUDE_CODE_SESSION_ID:-default}}"
+
 reddit_open() {
   local url="$1" ua
   command -v agent-browser >/dev/null || { echo "error: agent-browser not installed" >&2; return 1; }

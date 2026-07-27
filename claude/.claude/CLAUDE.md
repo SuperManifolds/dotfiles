@@ -16,7 +16,7 @@ _Global defaults. A project's CLAUDE.md, skills, or established conventions win 
 - When a fetch returns empty, truncated, an app shell, a login/consent wall, or a bot challenge (common on JS-rendered pages), escalate — never fabricate page content. If every tool fails, say so and name what you tried.
   - Thin/empty `WebFetch` → `firecrawl-scrape` (renders SPAs).
   - Needs clicks/forms/pagination/auth → `firecrawl-interact`.
-  - Firecrawl can't handle it (heavy JS, bot challenge, site JSON API) → `agent-browser` (real Chrome CLI; `agent-browser skills get core` for commands).
+  - Firecrawl can't handle it (heavy JS, bot challenge, site JSON API) → `agent-browser` (real Chrome CLI; `agent-browser skills get core` for commands). Sessions auto-isolate per Claude instance; use plain `close`, never `close --all` (it kills other instances' browsers).
   - Reddit (firecrawl can't scrape it) → `firecrawl-search` to find, `reddit-thread` skill to read (`reddit-search.sh` / `reddit-read.sh`).
 - For firsthand-experience topics (comparisons, recommendations, troubleshooting, "is X worth it"), pull in Reddit discussion and cite the threads used.
 

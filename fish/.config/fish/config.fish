@@ -12,6 +12,14 @@ set -qx LESS; or set -gx LESS '-g -i -M -R -S -w -X -z-4'
 set -gx BUN_INSTALL "$HOME/.bun"
 set -gx ENABLE_EXPERIMENTAL_MCP_CLI true
 
+# agent-browser: give each Claude Code instance its own isolated browser session
+# so concurrent instances don't drive (or close) the same browser. Inherited by
+# scripts launched from this shell (e.g. the reddit-thread skill). Unset outside
+# Claude Code, so normal terminal use keeps the default session.
+if set -q CLAUDE_CODE_SESSION_ID
+    set -gx AGENT_BROWSER_SESSION "claude-$CLAUDE_CODE_SESSION_ID"
+end
+
 # --- PATH ----------------------------------------------------------------
 # fish does NOT read /etc/profile or /etc/profile.d, so paths that bash/zsh
 # pick up there must be added explicitly: OrbStack guest dirs (from
