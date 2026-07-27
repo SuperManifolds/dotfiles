@@ -22,11 +22,14 @@ vim.api.nvim_create_autocmd("VimEnter", {
 })
 
 local golang_organize_imports = function(bufnr, isPreflight)
-    local params = vim.lsp.util.make_range_params(nil, vim.lsp.util._get_offset_encoding(bufnr))
+    local client = vim.lsp.get_clients({ bufnr = bufnr, name = "gopls" })[1]
+    if not client then return end
+
+    local params = vim.lsp.util.make_range_params(0, client.offset_encoding)
     params.context = { only = { "source.organizeImports" } }
 
     if isPreflight then
-        vim.lsp.buf_request(bufnr, "textDocument/codeAction", params, function() end)
+        client:request("textDocument/codeAction", params, function() end, bufnr)
         return
     end
 
@@ -34,9 +37,9 @@ local golang_organize_imports = function(bufnr, isPreflight)
     for _, res in pairs(result or {}) do
         for _, r in pairs(res.result or {}) do
             if r.edit then
-                vim.lsp.util.apply_workspace_edit(r.edit, vim.lsp.util._get_offset_encoding(bufnr))
-            else
-                vim.lsp.buf.execute_command(r.command)
+                vim.lsp.util.apply_workspace_edit(r.edit, client.offset_encoding)
+            elseif r.command then
+                client:exec_cmd(r.command, { bufnr = bufnr })
             end
         end
     end

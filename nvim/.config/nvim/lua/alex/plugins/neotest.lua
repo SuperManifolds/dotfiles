@@ -1,11 +1,10 @@
 return {
     "nvim-neotest/neotest",
     dependencies = {
-        "lawrence-laz/neotest-zig", -- Installation
+        "lawrence-laz/neotest-zig",
         "nvim-lua/plenary.nvim",
         "nvim-treesitter/nvim-treesitter",
         "nvim-neotest/neotest-go",
-        "lawrence-laz/neotest-zig",
         "rouge8/neotest-rust",
     },
     config = function()
