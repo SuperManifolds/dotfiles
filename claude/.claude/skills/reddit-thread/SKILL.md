@@ -69,4 +69,6 @@ deleted/removed nodes or very deep stubs.
   be rate-limited; wait and retry.
 - Keep the browser warm: the first call passes the challenge; subsequent calls
   in the same session reuse cookies and are faster.
-- Files: `reddit-read.sh` (driver), `stealth.js` (fingerprint patch).
+- Files: `reddit-read.sh` (orchestrator), `stealth.js` (fingerprint patch,
+  init-script), `extract.js` (in-page thread fetch + comment-tree walk),
+  `render.py` (result → markdown / raw JSON).
