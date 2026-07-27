@@ -1,4 +1,7 @@
 return {
-   "nvim-pack/nvim-spectre",
-    dependencies = {"nvim-tree/nvim-web-devicons"}
+    {
+        "nvim-pack/nvim-spectre",
+        cmd = "Spectre",
+        dependencies = { "nvim-tree/nvim-web-devicons" },
+    }
 }
