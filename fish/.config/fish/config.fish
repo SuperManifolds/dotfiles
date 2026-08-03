@@ -112,3 +112,13 @@ source ~/.orbstack/shell/init2.fish 2>/dev/null || :
 
 # opencode
 fish_add_path /Users/alex/.opencode/bin
+
+# --- Machine-local config -------------------------------------------------
+# Secrets and per-machine env, kept out of this repo. ~/.config/fish is a stow
+# symlink into the repo, so everything under it is version-controlled —
+# including fish_variables, which is where `set -Ux` would write an API key.
+# Put those here instead. Sourced last so it can override anything above.
+# Untracked and optional, same pattern as ~/.config/git/config.local.
+if test -r $HOME/.config/fish-local.fish
+    source $HOME/.config/fish-local.fish
+end
