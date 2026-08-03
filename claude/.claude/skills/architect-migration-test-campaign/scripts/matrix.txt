@@ -1,0 +1,40 @@
+# Workload matrix — run each with: run-migration.sh <name> <image> <port> <probe> ['<extra yaml>']
+# probe: redis (RESP PING) | http (keep-alive GET) | tcp (MSG_PEEK liveness)
+# Expected on a main build: ~26/28 PASS. Known non-pass: Envoy, Node.js+io_uring.
+
+# --- Cache / KV ---
+redis     redis:7-alpine                        6379  redis  'args: ["--enable-debug-command","yes"]'
+valkey    valkey/valkey:8-alpine                6379  redis
+memcached memcached:alpine                      11211 tcp
+etcd      quay.io/coreos/etcd:v3.5.17           2379  tcp    'command: ["etcd","--listen-client-urls","http://0.0.0.0:2379","--advertise-client-urls","http://0.0.0.0:2379"]'
+
+# --- Relational DB ---
+pg        postgres:16-alpine                    5432  tcp    'env: [{name: POSTGRES_HOST_AUTH_METHOD, value: trust}]'
+mysql     mysql:8.0                             3306  tcp    'env: [{name: MYSQL_ALLOW_EMPTY_PASSWORD, value: "1"}]'
+mariadb   mariadb:11                            3306  tcp    'env: [{name: MARIADB_ALLOW_EMPTY_ROOT_PASSWORD, value: "1"}]'
+cockroach cockroachdb/cockroach:v24.1.0         26257 tcp    'command: ["cockroach","start-single-node","--insecure"]'
+
+# --- NoSQL / analytics ---
+mongo     mongo:7                               27017 tcp
+clickhouse clickhouse/clickhouse-server:24      8123  http
+influx    influxdb:2                            8086  http
+
+# --- Queue / broker ---
+rabbit    rabbitmq:3-alpine                     5672  tcp
+nats      nats:alpine                           4222  tcp
+mqtt      eclipse-mosquitto:2                   1883  tcp
+
+# --- Web / proxy ---
+nginx     nginx:alpine                          80    http
+httpd     httpd:alpine                          80    http
+caddy     caddy:2-alpine                        80    http
+
+# --- App runtimes ---
+tomcat    tomcat:10.1-jre17                     8080  http
+py        python:3-alpine                       8080  http   'command: ["python3","-m","http.server","8080"]'
+grpc      moul/grpcbin                          9000  tcp
+ws        jmalloc/echo-server                   8080  http
+
+# --- Deliberate CRIU-failure targets (use characterize.sh) ---
+node-iouring  node:22-alpine  8080  http  'env: [{name: UV_USE_IO_URING, value: "1"}]'   # FAIL: anon_inode:[io_uring] (use characterize.sh)
+envoy         envoyproxy/envoy:v1.31  10000  http                                        # FAIL: listeners don't restore
