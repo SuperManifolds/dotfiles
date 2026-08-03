@@ -15,6 +15,7 @@ pacman_packages:
   - fd
   - ffmpeg
   - fish
+  - fzf
   - git
   - git-delta
   - difftastic
@@ -44,6 +45,7 @@ pacman_packages:
   - unarchiver
   - xh
   - yt-dlp
+  - zoxide
 
 aur_packages:
   - opentofu-bin
