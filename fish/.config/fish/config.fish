@@ -20,6 +20,20 @@ if set -q CLAUDE_CODE_SESSION_ID
     set -gx AGENT_BROWSER_SESSION "claude-$CLAUDE_CODE_SESSION_ID"
 end
 
+# agent-browser drives a real Chrome, downloading its own into
+# ~/.agent-browser/browsers. Chrome for Testing publishes no Linux ARM64 build,
+# so on aarch64 (e.g. this OrbStack container) that download is impossible —
+# point it at the distro Chromium instead. Only when it has no browser of its
+# own, so machines where `agent-browser install` worked keep using that.
+if not set -q AGENT_BROWSER_EXECUTABLE_PATH; and not test -d $HOME/.agent-browser/browsers
+    for b in chromium chromium-browser
+        if type -q $b
+            set -gx AGENT_BROWSER_EXECUTABLE_PATH (command -v $b)
+            break
+        end
+    end
+end
+
 # --- PATH ----------------------------------------------------------------
 # fish does NOT read /etc/profile or /etc/profile.d, so paths that bash/zsh
 # pick up there must be added explicitly: OrbStack guest dirs (from
@@ -37,13 +51,27 @@ end
 # matching the old zsh PATH precedence.
 for d in /usr/local/sbin /usr/local/bin $HOME/sbin $HOME/bin \
          /opt/orbstack-guest/data/bin/cmdlinks /opt/orbstack-guest/bin-hiprio \
-         $HOME/.cargo/bin $HOME/.local/bin $HOME/.bun/bin
+         $HOME/go/bin $HOME/.cargo/bin $HOME/.local/bin $HOME/.bun/bin
     test -d $d; and fish_add_path -g $d
 end
 
 # Homebrew (macOS / Linuxbrew). Sets its own PATH/MANPATH.
 if test -x /opt/homebrew/bin/brew
     /opt/homebrew/bin/brew shellenv | source
+end
+
+# --- Fisher plugins ------------------------------------------------------
+# ~/.config/fish is a stow symlink into this repo, so fisher's default install
+# location would drop plugin files (functions/, completions/, conf.d/) straight
+# into version control, interleaved with the tracked ones. Point fisher at a
+# state dir outside the repo instead — the documented pattern for a tracked
+# fish config. `fish_plugins` stays tracked as the manifest; `fisher update`
+# installs from it. Mirrors how tmux/.config/tmux/plugins is kept out of git.
+set -gx fisher_path $HOME/.local/share/fisher
+set -p fish_function_path $fisher_path/functions
+set -p fish_complete_path $fisher_path/completions
+for f in $fisher_path/conf.d/*.fish
+    test -r $f; and source $f
 end
 
 # --- Prompt & completions ------------------------------------------------
@@ -84,3 +112,13 @@ source ~/.orbstack/shell/init2.fish 2>/dev/null || :
 
 # opencode
 fish_add_path /Users/alex/.opencode/bin
+
+# --- Machine-local config -------------------------------------------------
+# Secrets and per-machine env, kept out of this repo. ~/.config/fish is a stow
+# symlink into the repo, so everything under it is version-controlled —
+# including fish_variables, which is where `set -Ux` would write an API key.
+# Put those here instead. Sourced last so it can override anything above.
+# Untracked and optional, same pattern as ~/.config/git/config.local.
+if test -r $HOME/.config/fish-local.fish
+    source $HOME/.config/fish-local.fish
+end

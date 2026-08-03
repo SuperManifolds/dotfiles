@@ -7,6 +7,9 @@ pacman_packages:
   - azure-cli
   - bat
   - btop
+  # Browser for agent-browser (reddit-thread skill). Required on aarch64, where
+  # Chrome for Testing has no build for `agent-browser install` to download.
+  - chromium
   - docker
   - docker-compose
   - dust
@@ -15,6 +18,7 @@ pacman_packages:
   - fd
   - ffmpeg
   - fish
+  - fzf
   - git
   - git-delta
   - difftastic
@@ -44,6 +48,7 @@ pacman_packages:
   - unarchiver
   - xh
   - yt-dlp
+  - zoxide
 
 aur_packages:
   - opentofu-bin

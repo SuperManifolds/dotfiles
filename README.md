@@ -44,6 +44,20 @@ This skips desktop-specific packages:
 
 See `Brewfile` for macOS packages and `ansible/roles/packages/vars/fedora.yml` for Fedora packages.
 
+**Agent CLIs** (all OSes, via `ansible/roles/packages/tasks/agent-clis.yml`):
+
+These back the Claude Code skills in `claude/.claude/skills/` and are npm-only,
+so they are installed by Ansible rather than from the Brewfile:
+
+- `firecrawl-cli` — the `firecrawl*` skills (scrape / crawl / search / research)
+- `agent-browser` — the `reddit-thread` skill
+
+`agent-browser` is requested as `@latest` on purpose: it declares
+`engines: node>=24`, and against the node 22 that Fedora, Arch and Homebrew
+ship, npm's engine-aware resolution silently falls back to 0.27.0 — which
+predates the `set headers` and `wait --load networkidle` commands the skill
+uses. The `EBADENGINE` warning is harmless; 0.33.x runs fine on node 22.
+
 ### Shell
 
 - **Fish** set as default shell
@@ -103,7 +117,23 @@ After running `setup.sh`:
 
 ### Git Setup
 
-The git config has GPG signing and signoff enabled. Configure your identity and signing key:
+The tracked config signs commits and tags with an **SSH key**
+(`user.signingkey = ~/.ssh/id_ed25519.pub`, verified against
+`git/.config/git/allowed_signers`).
+
+Anything that differs per machine — a different signing key or format, proxies,
+work identities — belongs in `~/.config/git/config.local`, which `.gitconfig`
+includes last (so it wins) and git ignores when absent. That file is
+deliberately untracked. For example, on a box with a GPG key but no ed25519 key:
+
+```ini
+[user]
+	signingkey = <YOUR_KEY_ID>
+[gpg]
+	format = openpgp
+```
+
+To use GPG signing, configure your identity and key:
 
 ```bash
 # Set your identity
@@ -139,6 +169,42 @@ gpg --import private.asc
 gpg --edit-key <YOUR_KEY_ID>
 # Type: trust, 5 (ultimate), y, quit
 ```
+
+### Agent CLIs
+
+`firecrawl-cli` needs an API key before the `firecrawl*` skills work. Put it in
+`~/.config/fish-local.fish`, which `config.fish` sources when present and which
+is deliberately untracked:
+
+```fish
+set -gx FIRECRAWL_API_KEY fc-...
+```
+
+Then `firecrawl --status` should report *Authenticated via FIRECRAWL_API_KEY*
+along with your credit balance.
+
+Two things not to do instead. `firecrawl config -k <key>` (aka `firecrawl
+login`) looks like it works — it prints `Status: ✓ Authenticated` — but it
+persists nothing, leaves `API Key: Not set`, and writes no config file at the
+`~/.config/firecrawl-cli` path it reports; the env var is the only working
+path. And `set -Ux` would store the key in `fish_variables`, which lives under
+`~/.config/fish` — a stow symlink into this repo — so the key would sit in the
+working tree, one `git add -f` or `git clean -x` away from being committed or
+deleted.
+
+`agent-browser` needs a Chrome to drive. Ansible runs `agent-browser install`
+to download one, except where a distro Chromium is already present. On **Linux
+ARM64** that download is impossible (Chrome for Testing ships no aarch64
+build), so the `chromium` package is used instead and `config.fish` exports
+`AGENT_BROWSER_EXECUTABLE_PATH` automatically. Verify with:
+
+```bash
+agent-browser open https://example.com; agent-browser read
+```
+
+Note that Chromium is not sufficient for the `reddit-thread` skill: Reddit's
+bot challenge fingerprints it (`userAgentData.brands` reports Chromium, not
+Google Chrome), so that skill only works where real Chrome is available.
 
 ### Optional
 

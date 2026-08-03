@@ -22,10 +22,19 @@ dnf_packages:
   - pipx
   - helm
   - git-filter-repo
+  # Browser for agent-browser (reddit-thread skill). Required on aarch64, where
+  # Chrome for Testing has no build for `agent-browser install` to download.
+  - chromium
   - git-delta
+  - difftastic
   - eza
   - k9s
   - tree-sitter-cli
+  # Shell ergonomics: fzf.fish pickers are backed by fd + bat, zoxide adds `z`.
+  - fzf
+  - fd-find
+  - bat
+  - zoxide
   - unar
 
 dnf_desktop_packages:
