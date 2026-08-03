@@ -1,0 +1,60 @@
+---
+# CLIs backing the Claude Code skills in claude/.claude/skills:
+#   firecrawl-cli  -> the firecrawl* skills (scrape/crawl/search/research)
+#   agent-browser  -> the reddit-thread skill (browser.sh)
+# Both are npm-only (no Homebrew formula), so they are installed here on every
+# OS rather than from the Brewfile. npm's global prefix is user-writable under
+# Homebrew but root-owned on Linux, hence the conditional become.
+
+- name: Install firecrawl-cli
+  community.general.npm:
+    name: firecrawl-cli
+    global: true
+    state: present
+  become: "{{ ansible_os_family != 'Darwin' }}"
+
+# agent-browser declares engines node>=24, but Fedora, Arch and Homebrew all
+# still ship node 22. npm's engine-aware resolution then silently settles on
+# 0.27.0, which predates the `set headers` and `wait --load networkidle`
+# commands that reddit-thread's browser.sh calls — so the skill breaks with no
+# obvious cause. Asking for @latest overrides that: EBADENGINE is only a
+# warning and 0.33.x runs fine on node 22. Guarded on the installed version so
+# repeat runs stay idempotent (a bare @latest always reports "changed").
+- name: Check installed agent-browser version
+  ansible.builtin.command: agent-browser --version
+  register: agent_browser_version
+  changed_when: false
+  failed_when: false
+
+- name: Install agent-browser
+  community.general.npm:
+    name: agent-browser@latest
+    global: true
+    state: present
+  become: "{{ ansible_os_family != 'Darwin' }}"
+  when: >-
+    agent_browser_version.rc != 0
+    or (agent_browser_version.stdout | regex_replace('^agent-browser\s+', ''))
+       is version('0.33.0', '<')
+
+# agent-browser needs a Chrome to drive. It can download its own, except on
+# Linux ARM64 — Chrome for Testing publishes no aarch64 build — where the
+# distro Chromium installed via the package lists is used instead, wired up by
+# AGENT_BROWSER_EXECUTABLE_PATH in fish config.fish.
+- name: Look for a system Chromium
+  ansible.builtin.shell: command -v chromium || command -v chromium-browser
+  register: agent_browser_chromium
+  changed_when: false
+  failed_when: false
+
+- name: Check for a downloaded agent-browser Chrome
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.agent-browser/browsers"
+  register: agent_browser_cache
+
+- name: Download Chrome for agent-browser
+  ansible.builtin.command: agent-browser install
+  when:
+    - not agent_browser_cache.stat.exists
+    - agent_browser_chromium.rc != 0
+  changed_when: true

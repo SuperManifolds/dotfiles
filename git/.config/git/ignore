@@ -16,3 +16,6 @@ CLAUDE.md
 # Go workspaces are per-machine; go.work itself is often committed, the
 # checksum file never is.
 go.work.sum
+
+# firecrawl-cli writes its scrape/crawl cache into the working directory.
+.firecrawl/

@@ -22,6 +22,9 @@ dnf_packages:
   - pipx
   - helm
   - git-filter-repo
+  # Browser for agent-browser (reddit-thread skill). Required on aarch64, where
+  # Chrome for Testing has no build for `agent-browser install` to download.
+  - chromium
   - git-delta
   - difftastic
   - eza
