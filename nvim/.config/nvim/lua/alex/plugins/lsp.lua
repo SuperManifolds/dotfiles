@@ -160,6 +160,29 @@ return {
                 }
             })
 
+            -- nvim-lspconfig's terraformls config calls vim.lsp.codelens.enable(),
+            -- which only exists on nvim 0.12+. On 0.11 that field is nil and
+            -- on_attach throws ON_ATTACH_ERROR, so replace it with an equivalent
+            -- that falls back to refreshing codelenses on the usual events.
+            vim.lsp.config('terraformls', {
+                on_attach = function(_, bufnr)
+                    if vim.lsp.codelens.enable then
+                        vim.lsp.codelens.enable(true, { bufnr = bufnr })
+                        return
+                    end
+                    vim.api.nvim_create_autocmd(
+                        { 'BufEnter', 'InsertLeave', 'BufWritePost' },
+                        {
+                            buffer = bufnr,
+                            callback = function()
+                                vim.lsp.codelens.refresh({ bufnr = bufnr })
+                            end,
+                        }
+                    )
+                    vim.lsp.codelens.refresh({ bufnr = bufnr })
+                end,
+            })
+
             vim.lsp.config('yamlls', {
                 settings = {
                     yaml = {
