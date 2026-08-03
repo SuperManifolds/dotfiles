@@ -36,18 +36,32 @@ swift_fmt() {
   fi
 }
 
-# JS/TS: prefer the repo's own formatter (correct config + version), then a
-# global biome/prettier. Skips silently if none is available.
+# JS/TS: format only with the tool the project actually configures, so a globally
+# installed formatter's defaults (e.g. Biome's tabs) never override a repo's own
+# style. Precedence at the nearest configured directory: Biome (biome.json) ->
+# Prettier (.prettierrc* / prettier.config.* / package.json "prettier") -> ESLint
+# (eslint.config.* / .eslintrc*, applying the repo's own --fix). A repo-local
+# binary is preferred over a global one. Skips silently if none is configured.
 js_fmt() {
   local d; d=$(dirname "$f")
   while [ "$d" != "/" ]; do
-    if [ -x "$d/node_modules/.bin/biome" ];   then "$d/node_modules/.bin/biome" format --write "$f" >/dev/null 2>&1; return; fi
-    if [ -x "$d/node_modules/.bin/prettier" ]; then "$d/node_modules/.bin/prettier" --write "$f" >/dev/null 2>&1; return; fi
+    if [ -e "$d/biome.json" ] || [ -e "$d/biome.jsonc" ]; then
+      if   [ -x "$d/node_modules/.bin/biome" ]; then "$d/node_modules/.bin/biome" format --write "$f" >/dev/null 2>&1
+      elif command -v biome >/dev/null 2>&1;    then biome format --write "$f" >/dev/null 2>&1; fi
+      return
+    fi
+    if ls "$d"/.prettierrc* "$d"/prettier.config.* >/dev/null 2>&1 \
+       || { [ -f "$d/package.json" ] && jq -e 'has("prettier")' "$d/package.json" >/dev/null 2>&1; }; then
+      if   [ -x "$d/node_modules/.bin/prettier" ]; then "$d/node_modules/.bin/prettier" --write "$f" >/dev/null 2>&1
+      elif command -v prettier >/dev/null 2>&1;    then prettier --write "$f" >/dev/null 2>&1; fi
+      return
+    fi
+    if ls "$d"/eslint.config.* "$d"/.eslintrc* >/dev/null 2>&1; then
+      [ -x "$d/node_modules/.bin/eslint" ] && "$d/node_modules/.bin/eslint" --fix "$f" >/dev/null 2>&1
+      return
+    fi
     d=$(dirname "$d")
   done
-  if   command -v biome    >/dev/null 2>&1; then biome format --write "$f" >/dev/null 2>&1
-  elif command -v prettier >/dev/null 2>&1; then prettier --write "$f"     >/dev/null 2>&1
-  fi
 }
 
 case "$f" in
