@@ -37,7 +37,7 @@ end
 # matching the old zsh PATH precedence.
 for d in /usr/local/sbin /usr/local/bin $HOME/sbin $HOME/bin \
          /opt/orbstack-guest/data/bin/cmdlinks /opt/orbstack-guest/bin-hiprio \
-         $HOME/.cargo/bin $HOME/.local/bin $HOME/.bun/bin
+         $HOME/go/bin $HOME/.cargo/bin $HOME/.local/bin $HOME/.bun/bin
     test -d $d; and fish_add_path -g $d
 end
 
