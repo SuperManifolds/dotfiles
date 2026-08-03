@@ -66,3 +66,8 @@
 	helper = !PATH=\"/opt/homebrew/bin:$PATH\" gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = !PATH=\"/opt/homebrew/bin:$PATH\" gh auth git-credential
+# Machine-local overrides, last so they win. Untracked and optional: git
+# silently ignores a missing include. Use it for anything that differs per
+# box — signing key/format, proxies, work identities.
+[include]
+	path = ~/.config/git/config.local

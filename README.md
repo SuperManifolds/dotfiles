@@ -103,7 +103,23 @@ After running `setup.sh`:
 
 ### Git Setup
 
-The git config has GPG signing and signoff enabled. Configure your identity and signing key:
+The tracked config signs commits and tags with an **SSH key**
+(`user.signingkey = ~/.ssh/id_ed25519.pub`, verified against
+`git/.config/git/allowed_signers`).
+
+Anything that differs per machine — a different signing key or format, proxies,
+work identities — belongs in `~/.config/git/config.local`, which `.gitconfig`
+includes last (so it wins) and git ignores when absent. That file is
+deliberately untracked. For example, on a box with a GPG key but no ed25519 key:
+
+```ini
+[user]
+	signingkey = <YOUR_KEY_ID>
+[gpg]
+	format = openpgp
+```
+
+To use GPG signing, configure your identity and key:
 
 ```bash
 # Set your identity
