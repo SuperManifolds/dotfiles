@@ -174,7 +174,8 @@ if [ "$fail" -ne 0 ]; then
   for out in "$reports"/*.out; do
     grep -q "^VERDICT=CLEAN" "$out" && continue
     echo "----- $(basename "$out" .out) -----"
-    grep -E "^FILE=|^ERR |^VERDICT=" "$out"
+    # verify.lua indents ERR/NOTE lines by two spaces, so don't anchor at col 0.
+    grep -E "^FILE=|^ *ERR |^VERDICT=" "$out"
   done
   echo
   echo "RESULT: errors found."
