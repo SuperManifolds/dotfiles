@@ -12,3 +12,7 @@
 # Claude Code local artifacts (never commit into other repos)
 **/.claude/settings.local.json
 CLAUDE.md
+
+# Go workspaces are per-machine; go.work itself is often committed, the
+# checksum file never is.
+go.work.sum
