@@ -32,6 +32,20 @@ def main():
 
     q = d.get("query", "")
     results = d.get("results", [])
+
+    # search.js gives up after its own retries and returns the non-200 status
+    # with an empty result list. That is a blocked request, not an empty search:
+    # reporting it as "no results" hides a failing challenge behind a plausible
+    # answer, so surface the status and fail.
+    status = d.get("status")
+    if status != 200:
+        print(
+            f"error: Reddit returned HTTP {status} — the bot challenge did not pass. "
+            "Retry; if it persists, inspect `agent-browser get text body`.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     if not results:
         print(f"No Reddit results for {q!r}." if q else "No Reddit results.")
         return
