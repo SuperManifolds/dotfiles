@@ -20,6 +20,20 @@ if set -q CLAUDE_CODE_SESSION_ID
     set -gx AGENT_BROWSER_SESSION "claude-$CLAUDE_CODE_SESSION_ID"
 end
 
+# agent-browser drives a real Chrome, downloading its own into
+# ~/.agent-browser/browsers. Chrome for Testing publishes no Linux ARM64 build,
+# so on aarch64 (e.g. this OrbStack container) that download is impossible —
+# point it at the distro Chromium instead. Only when it has no browser of its
+# own, so machines where `agent-browser install` worked keep using that.
+if not set -q AGENT_BROWSER_EXECUTABLE_PATH; and not test -d $HOME/.agent-browser/browsers
+    for b in chromium chromium-browser
+        if type -q $b
+            set -gx AGENT_BROWSER_EXECUTABLE_PATH (command -v $b)
+            break
+        end
+    end
+end
+
 # --- PATH ----------------------------------------------------------------
 # fish does NOT read /etc/profile or /etc/profile.d, so paths that bash/zsh
 # pick up there must be added explicitly: OrbStack guest dirs (from

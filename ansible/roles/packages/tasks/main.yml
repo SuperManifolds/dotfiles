@@ -22,3 +22,7 @@
   when:
     - ansible_os_family == "Archlinux"
     - install_desktop | default(true)
+
+# Cross-platform, and last: these npm CLIs need node from the OS lists above.
+- name: Include agent CLI tasks
+  ansible.builtin.include_tasks: agent-clis.yml

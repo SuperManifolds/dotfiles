@@ -44,6 +44,20 @@ This skips desktop-specific packages:
 
 See `Brewfile` for macOS packages and `ansible/roles/packages/vars/fedora.yml` for Fedora packages.
 
+**Agent CLIs** (all OSes, via `ansible/roles/packages/tasks/agent-clis.yml`):
+
+These back the Claude Code skills in `claude/.claude/skills/` and are npm-only,
+so they are installed by Ansible rather than from the Brewfile:
+
+- `firecrawl-cli` — the `firecrawl*` skills (scrape / crawl / search / research)
+- `agent-browser` — the `reddit-thread` skill
+
+`agent-browser` is requested as `@latest` on purpose: it declares
+`engines: node>=24`, and against the node 22 that Fedora, Arch and Homebrew
+ship, npm's engine-aware resolution silently falls back to 0.27.0 — which
+predates the `set headers` and `wait --load networkidle` commands the skill
+uses. The `EBADENGINE` warning is harmless; 0.33.x runs fine on node 22.
+
 ### Shell
 
 - **Fish** set as default shell
@@ -155,6 +169,30 @@ gpg --import private.asc
 gpg --edit-key <YOUR_KEY_ID>
 # Type: trust, 5 (ultimate), y, quit
 ```
+
+### Agent CLIs
+
+`firecrawl-cli` needs an API key before the `firecrawl*` skills work. It is not
+stored in this repo — authenticate once per machine:
+
+```bash
+firecrawl login          # or: set -Ux FIRECRAWL_API_KEY fc-...
+firecrawl --status       # verify auth, concurrency, credits
+```
+
+`agent-browser` needs a Chrome to drive. Ansible runs `agent-browser install`
+to download one, except where a distro Chromium is already present. On **Linux
+ARM64** that download is impossible (Chrome for Testing ships no aarch64
+build), so the `chromium` package is used instead and `config.fish` exports
+`AGENT_BROWSER_EXECUTABLE_PATH` automatically. Verify with:
+
+```bash
+agent-browser open https://example.com; agent-browser read
+```
+
+Note that Chromium is not sufficient for the `reddit-thread` skill: Reddit's
+bot challenge fingerprints it (`userAgentData.brands` reports Chromium, not
+Google Chrome), so that skill only works where real Chrome is available.
 
 ### Optional
 
