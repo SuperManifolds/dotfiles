@@ -172,13 +172,25 @@ gpg --edit-key <YOUR_KEY_ID>
 
 ### Agent CLIs
 
-`firecrawl-cli` needs an API key before the `firecrawl*` skills work. It is not
-stored in this repo — authenticate once per machine:
+`firecrawl-cli` needs an API key before the `firecrawl*` skills work. Put it in
+`~/.config/fish-local.fish`, which `config.fish` sources when present and which
+is deliberately untracked:
 
-```bash
-firecrawl login          # or: set -Ux FIRECRAWL_API_KEY fc-...
-firecrawl --status       # verify auth, concurrency, credits
+```fish
+set -gx FIRECRAWL_API_KEY fc-...
 ```
+
+Then `firecrawl --status` should report *Authenticated via FIRECRAWL_API_KEY*
+along with your credit balance.
+
+Two things not to do instead. `firecrawl config -k <key>` (aka `firecrawl
+login`) looks like it works — it prints `Status: ✓ Authenticated` — but it
+persists nothing, leaves `API Key: Not set`, and writes no config file at the
+`~/.config/firecrawl-cli` path it reports; the env var is the only working
+path. And `set -Ux` would store the key in `fish_variables`, which lives under
+`~/.config/fish` — a stow symlink into this repo — so the key would sit in the
+working tree, one `git add -f` or `git clean -x` away from being committed or
+deleted.
 
 `agent-browser` needs a Chrome to drive. Ansible runs `agent-browser install`
 to download one, except where a distro Chromium is already present. On **Linux
