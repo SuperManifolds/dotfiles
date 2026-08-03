@@ -46,6 +46,20 @@ if test -x /opt/homebrew/bin/brew
     /opt/homebrew/bin/brew shellenv | source
 end
 
+# --- Fisher plugins ------------------------------------------------------
+# ~/.config/fish is a stow symlink into this repo, so fisher's default install
+# location would drop plugin files (functions/, completions/, conf.d/) straight
+# into version control, interleaved with the tracked ones. Point fisher at a
+# state dir outside the repo instead — the documented pattern for a tracked
+# fish config. `fish_plugins` stays tracked as the manifest; `fisher update`
+# installs from it. Mirrors how tmux/.config/tmux/plugins is kept out of git.
+set -gx fisher_path $HOME/.local/share/fisher
+set -p fish_function_path $fisher_path/functions
+set -p fish_complete_path $fisher_path/completions
+for f in $fisher_path/conf.d/*.fish
+    test -r $f; and source $f
+end
+
 # --- Prompt & completions ------------------------------------------------
 # Starship prompt (cross-platform). Installed by the ansible fish role.
 if type -q starship
