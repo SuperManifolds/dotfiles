@@ -1,7 +1,6 @@
 ---
 name: weekly-report
-description: Generate a weekly progress report based on git commits, PRs, review activity, Linear tickets, and Slack activity — then update the team's Slite standup doc
-disable-model-invocation: true
+description: Generate a weekly progress report from git commits, PRs, review activity, Linear tickets and Slack activity, then update the team's Slite standup doc. Use when asked for a weekly report, a standup update, or a summary of what shipped. Writes to Slite, so only on an explicit request.
 argument-hint: [author-name]
 allowed-tools: Bash(git *), Bash(gh *), mcp__claude_ai_Linear__list_issues, mcp__claude_ai_Linear__list_comments, mcp__claude_ai_Linear__get_user, mcp__claude_ai_Linear__get_issue, mcp__slack__slack_search_public_and_private, mcp__slack__slack_search_users, mcp__slack__slack_read_thread, mcp__slite__search-notes, mcp__slite__get-note, mcp__slite__get-note-children, mcp__slite__modify-range, mcp__slite__append-blocks, mcp__slite__remove-blocks
 ---

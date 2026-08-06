@@ -1,7 +1,6 @@
 ---
 name: plan
-description: Turn a task (optionally grounded by a /research artifact) into a self-contained implementation spec written to a file, so the work survives context resets and can be executed in a fresh session. Manual-only — invoke with `/plan <task> [path]`. Use as the middle step of the research→plan→implement loop, before /implement.
-disable-model-invocation: true
+description: Turn a task (optionally grounded by a /research artifact) into a self-contained implementation spec written to a file, so the work survives context resets and can be executed in a fresh session. Use when asked to plan, spec out, or design the approach for a change, and as the middle step of the research→plan→implement loop before /implement.
 argument-hint: "<task description> [output path (default: ./spec.md)]"
 allowed-tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch
 ---
