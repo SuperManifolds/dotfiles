@@ -23,6 +23,9 @@ pacman_packages:
   - git-delta
   - difftastic
   - git-filter-repo
+  # Secret scanning in the global pre-commit hook. The hook hard-fails without
+  # it rather than skipping, so it has to be installed, not optional.
+  - gitleaks
   - github-cli
   - gnupg
   - go

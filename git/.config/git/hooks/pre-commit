@@ -2,63 +2,130 @@
 # Global pre-commit hook (installed via core.hooksPath in ~/.gitconfig).
 # Blocks commits that contain secrets or a malformed Claude Code skill/agent,
 # then delegates to a repo-local .git/hooks/pre-commit if one exists.
+#
+# Design rule: a check whose tool is missing FAILS, it does not skip. An earlier
+# version printed "ruby not found - skipping" and exited 0, so on a machine with
+# neither ruby nor gitleaks (this described Fedora, where nothing installed
+# either) every commit reported success while scanning nothing. "Skipped" and
+# "passed" must never look the same. Set DOTFILES_HOOKS_ALLOW_MISSING=1 to
+# downgrade a missing tool to a warning, e.g. on a machine you cannot provision.
 export LC_ALL="${LC_ALL:-en_US.UTF-8}" LANG="${LANG:-en_US.UTF-8}"
 
+allow_missing="${DOTFILES_HOOKS_ALLOW_MISSING:-0}"
+
+# missing_tool <tool> <what-is-not-checked> <how-to-install>
+missing_tool() {
+  if [ "$allow_missing" = "1" ]; then
+    echo "pre-commit: $1 not found, $2 NOT CHECKED (DOTFILES_HOOKS_ALLOW_MISSING=1)" >&2
+    return 0
+  fi
+  {
+    echo "pre-commit: $1 not found, so $2 cannot be checked."
+    echo "  This is a hard failure on purpose: a check that silently skips is"
+    echo "  indistinguishable from one that passed."
+    echo "  Install:  $3"
+    echo "  Bypass once:        git commit --no-verify"
+    echo "  Accept permanently: export DOTFILES_HOOKS_ALLOW_MISSING=1"
+  } >&2
+  return 1
+}
+
+# ---------------------------------------------------------------- secrets ----
 if command -v gitleaks >/dev/null 2>&1; then
   out="$(gitleaks git --staged --redact --no-banner 2>&1)"; rc=$?
   if [ "$rc" -ne 0 ]; then
     printf '%s\n' "$out" >&2
     echo "" >&2
-    echo "gitleaks: potential secret in staged changes — commit blocked." >&2
+    echo "gitleaks: potential secret in staged changes, commit blocked." >&2
     echo "  Inspect: gitleaks git --staged --redact --verbose" >&2
     echo "  Override a false positive: git commit --no-verify" >&2
     exit 1
   fi
+else
+  missing_tool gitleaks "staged changes for secrets" \
+    "dnf install gitleaks / pacman -S gitleaks / brew install gitleaks" || exit 1
 fi
 
-# Validate staged Claude Code skill/agent frontmatter (valid YAML, required
-# name + description, naming rules). A malformed artifact silently fails to
-# load, so catch it at the commit boundary. Needs ruby (stdlib YAML); skipped
-# if unavailable so this never blocks on a machine without it.
+# ------------------------------------------- claude skill/agent frontmatter ---
+# A malformed artifact silently fails to load, so catch it at the commit
+# boundary. Uses python3 (PyYAML when importable, otherwise a minimal parser
+# covering the same failure modes) because python3 is present everywhere these
+# dotfiles are deployed and ruby is not.
 artifacts="$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
   | grep -E '(^|/)\.claude/skills/.+/SKILL\.md$|(^|/)\.claude/agents/[^/]+\.md$|(^|/)SKILL\.md$' || true)"
 if [ -n "$artifacts" ]; then
-  if command -v ruby >/dev/null 2>&1; then
-    bad=0
-    while IFS= read -r f; do
-      [ -n "$f" ] && [ -f "$f" ] || continue
-      err="$(ruby -ryaml -e '
-        raw = File.read(ARGV[0])
-        m = raw.match(/\A---\n(.*?)\n---\n/m)
-        abort "missing YAML frontmatter" unless m
-        begin d = YAML.safe_load(m[1]); rescue => e; abort "invalid YAML: #{e.message}"; end
-        abort "frontmatter is not a mapping" unless d.is_a?(Hash)
-        name = d["name"].to_s; desc = d["description"].to_s
-        abort "missing name" if name.strip.empty?
-        abort "missing description" if desc.strip.empty?
-        abort "name must be lowercase a-z/0-9/hyphen, <=64 chars (got #{name.inspect})" unless name =~ /\A[a-z0-9-]{1,64}\z/
-        abort "name must not contain reserved words anthropic/claude" if name =~ /anthropic|claude/
-        abort "description too long (#{desc.length} > 1024)" if desc.length > 1024
-        if File.basename(ARGV[0]) == "SKILL.md"
-          body = raw.sub(/\A---\n.*?\n---\n/m, "")
-          warn "note: SKILL.md body is #{body.lines.count} lines (>500 recommended max)" if body.lines.count > 500
-        end
-      ' "$f" 2>&1)"
-      if [ $? -ne 0 ]; then
-        echo "pre-commit: invalid Claude artifact: $f" >&2
-        echo "  $err" >&2
-        bad=1
-      elif [ -n "$err" ]; then
-        echo "pre-commit: $f — $err" >&2
-      fi
-    done <<< "$artifacts"
-    if [ "$bad" -ne 0 ]; then
+  if command -v python3 >/dev/null 2>&1; then
+    if ! printf '%s\n' "$artifacts" | python3 -c '
+import os, re, sys
+
+try:
+    import yaml
+    def parse(text):
+        d = yaml.safe_load(text)
+        if not isinstance(d, dict):
+            raise ValueError("frontmatter is not a mapping")
+        return d
+    HOW = "yaml"
+except ImportError:
+    def parse(text):
+        # Enough for these artifacts: top-level "key: value" pairs only.
+        d = {}
+        for line in text.split("\n"):
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if line[0] in " \t-":       # nested/list content we do not model
+                continue
+            if ":" not in line:
+                raise ValueError(f"not a key: value line: {line!r}")
+            k, v = line.split(":", 1)
+            d[k.strip()] = v.strip().strip("\"\x27")
+        return d
+    HOW = "fallback parser (PyYAML not installed)"
+
+bad = 0
+for path in (p.strip() for p in sys.stdin):
+    if not path or not os.path.isfile(path):
+        continue
+    raw = open(path, encoding="utf-8").read()
+    def fail(msg):
+        global bad
+        print(f"pre-commit: invalid Claude artifact: {path}", file=sys.stderr)
+        print(f"  {msg}", file=sys.stderr)
+        bad = 1
+    m = re.match(r"\A---\n(.*?)\n---\n", raw, re.S)
+    if not m:
+        fail("missing YAML frontmatter"); continue
+    try:
+        d = parse(m.group(1))
+    except Exception as e:
+        fail(f"invalid frontmatter ({HOW}): {e}"); continue
+    name = str(d.get("name") or "").strip()
+    desc = str(d.get("description") or "").strip()
+    if not name:
+        fail("missing name"); continue
+    if not desc:
+        fail("missing description"); continue
+    if not re.fullmatch(r"[a-z0-9-]{1,64}", name):
+        fail(f"name must be lowercase a-z/0-9/hyphen, <=64 chars (got {name!r})"); continue
+    if re.search(r"anthropic|claude", name):
+        fail("name must not contain reserved words anthropic/claude"); continue
+    if len(desc) > 1024:
+        fail(f"description too long ({len(desc)} > 1024)"); continue
+    if os.path.basename(path) == "SKILL.md":
+        body = re.sub(r"\A---\n.*?\n---\n", "", raw, flags=re.S)
+        n = len(body.split("\n"))
+        if n > 500:
+            print(f"pre-commit: {path} note: body is {n} lines (>500 recommended max)",
+                  file=sys.stderr)
+sys.exit(1 if bad else 0)
+'; then
       echo "" >&2
       echo "Fix the frontmatter above, or 'git commit --no-verify' to bypass." >&2
       exit 1
     fi
   else
-    echo "pre-commit: ruby not found — skipping skill/agent frontmatter validation." >&2
+    missing_tool python3 "Claude skill/agent frontmatter" \
+      "dnf install python3 / pacman -S python / brew install python" || exit 1
   fi
 fi
 
