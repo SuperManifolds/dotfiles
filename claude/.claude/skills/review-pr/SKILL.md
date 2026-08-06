@@ -1,8 +1,7 @@
 ---
 name: review-pr
-description: Multi-pass review of the current branch as a pull request against a base branch — fans out parallel specialized passes, then merges, reproduces, and reports findings by severity. Manual-only: invoke with `/review-pr [base-branch]`.
+description: Multi-pass review of the current branch as a pull request against a base branch, fanning out parallel specialized passes, then merging, reproducing, and reporting findings by severity. Use when asked to review the current branch, a diff, or a change before it ships. Reports findings only, it never posts them; pair with /review-comments for that.
 argument-hint: "[base-branch (default: main)]"
-disable-model-invocation: true
 allowed-tools: Bash, Read, Glob, Grep, Agent, Write
 ---
 

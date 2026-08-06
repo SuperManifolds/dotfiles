@@ -1,7 +1,6 @@
 ---
 name: commit
-description: Split the working changes into well-formed conventional commits following the user's git conventions. Manual-only — invoke with `/commit [hint]`.
-disable-model-invocation: true
+description: Split the working changes into well-formed conventional commits following the user's git conventions. Use only when the user explicitly asks to commit or for a commit message, never automatically after making changes.
 argument-hint: "[optional focus or subject hint]"
 allowed-tools: Bash(git *), Read, Grep, Glob
 ---

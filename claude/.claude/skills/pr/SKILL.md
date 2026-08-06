@@ -1,7 +1,6 @@
 ---
 name: pr
-description: Create a pull request with a well-structured description, using the repo's PR template if one exists
-disable-model-invocation: true
+description: Create a pull request with a well-structured description, using the repo's PR template if one exists. Use when asked to open, create, or raise a PR, or to write a PR description. Creates GitHub state, so only on an explicit request.
 argument-hint: [base-branch]
 allowed-tools: Bash(git *), Bash(gh *), Read, Grep, Glob
 ---

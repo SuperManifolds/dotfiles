@@ -1,7 +1,6 @@
 ---
 name: proton
-description: Look up how to best run a Steam game on this Linux machine via Proton — gathers local Proton/NVIDIA/gamescope/GNOME versions, queries ProtonDB (summary API + headless-Chromium scrape of community reports), and produces a recommended Proton version + gamescope/HDR launch command tailored to this system's hardware and the user's HDR/scaling preferences.
-disable-model-invocation: true
+description: Work out how to best run a Steam game on this Linux machine via Proton, gathering local Proton/NVIDIA/gamescope/GNOME versions, querying ProtonDB (summary API plus a headless-Chromium scrape of community reports), and producing a recommended Proton version and gamescope/HDR launch command tailored to this hardware and the user's HDR/scaling preferences. Use when asked which Proton version to use for a game, how to launch a specific Steam or Windows game on Linux, or why one runs badly.
 argument-hint: "<game name or Steam AppID>"
 allowed-tools: Bash, Read, WebFetch, WebSearch
 ---

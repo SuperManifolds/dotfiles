@@ -1,7 +1,6 @@
 ---
 name: research
-description: Investigate a question about the codebase (and optionally docs/web) read-only, then write a grounded research artifact with file:line references. Manual-only — invoke with `/research <question> [path]`. Use as the first step of the research→plan→implement loop, before /plan.
-disable-model-invocation: true
+description: Investigate a question about the codebase (and optionally docs/web) read-only, then write a grounded research artifact with file:line references. Use when asked to research, investigate, trace, or understand how something works before changing it, and as the first step of the research→plan→implement loop before /plan.
 argument-hint: "<question> [output path]"
 allowed-tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch, Agent
 ---

@@ -1,7 +1,6 @@
 ---
 name: implement
-description: Execute an existing plan or spec file task-by-task, verifying each step with the project's tests and checking it off, pausing at checkpoints for review. Manual-only — invoke with `/implement <plan-file> [task range]`. Use as the last step of the research→plan→implement loop, after /plan.
-disable-model-invocation: true
+description: Execute an existing plan or spec file task-by-task, verifying each step with the project's tests and checking it off, pausing at checkpoints for review. Use when asked to implement, execute, or work through a plan or spec file that already exists, and as the last step of the research→plan→implement loop after /plan.
 argument-hint: "<plan or spec file> [task range]"
 allowed-tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 ---
