@@ -8,6 +8,7 @@ stow_packages:
   - fish
   - starship
   - claude
+  - weechat
 
 # macOS-only packages
 stow_packages_macos:

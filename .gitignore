@@ -3,4 +3,7 @@ nvim/.config/nvim/lazy-lock.json
 raycast/.config/raycast/extensions
 karabiner/.config/karabiner/automatic_backups/**
 tmux/.config/tmux/plugins
+# WeeChat secured data: AES-encrypted passwords plus the passphrase_command.
+# Machine-local by design — irc.conf only ever references ${sec.data.*}.
+weechat/.config/weechat/sec.conf
 .DS_Store

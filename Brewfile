@@ -35,6 +35,7 @@ brew "eza"
 brew "stow"
 brew "tmux"
 brew "sesh"    # smart tmux session manager (zoxide + tmux, fzf picker)
+brew "weechat"  # IRC client; config stowed from weechat/, secrets in sec.conf
 brew "yarn"
 brew "yt-dlp"
 brew "artginzburg/tap/sudo-touchid"

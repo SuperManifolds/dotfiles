@@ -81,6 +81,7 @@ uses. The `EBADENGINE` warning is harmless; 0.33.x runs fine on node 22.
 | `tmux/` | Tmux configuration |
 | `ghostty/` | Ghostty terminal configuration |
 | `fish/` | Fish shell config (config.fish, functions, greeting) |
+| `weechat/` | WeeChat IRC config + autoloaded scripts (`sec.conf` is machine-local) |
 | `karabiner/` | Karabiner-Elements (macOS only) |
 
 ## Structure
@@ -103,6 +104,7 @@ dotfiles/
 ├── tmux/                 # Tmux config (stow)
 ├── ghostty/              # Ghostty config (stow)
 ├── fish/                 # Fish shell config (stow)
+├── weechat/              # WeeChat config + scripts (stow)
 └── karabiner/            # Karabiner config (stow, macOS only)
 ```
 
@@ -169,6 +171,31 @@ gpg --import private.asc
 gpg --edit-key <YOUR_KEY_ID>
 # Type: trust, 5 (ultimate), y, quit
 ```
+
+### WeeChat
+
+Server settings, triggers and the autoloaded scripts are stowed, but the
+passwords are not. `irc.conf` only ever holds `${sec.data.*}` references; the
+encrypted values live in `sec.conf`, which is gitignored and machine-local.
+
+On a new machine, put the passphrase in the system keyring and let WeeChat read
+it from there, so no prompt appears at startup:
+
+```bash
+secret-tool store --label='WeeChat secured-data passphrase' weechat passphrase
+```
+
+Then in WeeChat, unlock and set each password once:
+
+```
+/secure passphrase <the same passphrase>
+/secure set znc_password <bouncer password>
+/set sec.crypt.passphrase_command "secret-tool lookup weechat passphrase"
+/save
+```
+
+`passphrase_command` is what makes this unattended — WeeChat runs it at startup
+to decrypt `sec.conf`. Without a keyring entry it falls back to prompting.
 
 ### Agent CLIs
 
