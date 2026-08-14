@@ -35,12 +35,20 @@ discord search <query> --server <s>     # message search (the primary tool)
     [--channel <c> …] [--author <id>] [--mentions <id>] [--pinned]
     [--has link|embed|file|image|video|sound] [--filename <s>] [--ext zip]
     [--before <iso|id>] [--after <iso|id>] [--relevant] [--limit 25]
+    [--all-servers]          # sweep every server (slower, rate-limited)
+    [--dm <channel_id>]      # search a DM/group instead of a server
 discord read <channel|thread> [--server <s>]    # history, oldest-first
     [--limit 50] [--around <msgid>] [--before …] [--after …] [--pinned]
-discord threads <forum> [--server <s>]  # forum posts: title, tags, msg count, OP files
+discord threads <forum|text> [--server <s>]  # forum posts OR a text channel's threads
     [--limit 50] [--active-only] [--archived-only]
 discord thread <thread_id> [--limit 200]        # read one forum post / thread
 discord message <channel> <msgid> [--context N] # one message (+/- N around it)
+discord mentions [--server <s>] [--limit 25]    # recent messages that mention you
+    [--no-roles] [--no-everyone]
+discord user <user_id>                          # profile + mutual servers + connections
+discord reactions <channel> <msgid> [--users]   # who reacted (read-only)
+discord events <server>                         # scheduled events
+discord dms                                     # list your DM / group-DM channels
 discord download <jumpUrl | channel_id msgid>   # save attachment(s)
     [--index N] [--name <substr>] [--out <dir>]  # default ~/Downloads/discord
 discord export <channel|forum> [--server <s>]   # dump to markdown file, then Read it
@@ -48,6 +56,10 @@ discord export <channel|forum> [--server <s>]   # dump to markdown file, then Re
 discord auth store   # (once) read token from stdin into Keychain
 discord whoami       # verify login
 ```
+
+Every message in the output carries `embeds` (title/description/url/fields) and
+`links` (URLs pulled from its content) — so externally-hosted files (Mega, GDrive,
+GitHub) and bot-posted release info are visible, not just Discord attachments.
 
 `<server>` and named `<channel>` accept a case-insensitive name substring or a
 numeric id. A numeric id always works and avoids ambiguity — resolve names to ids
@@ -81,6 +93,9 @@ then `Read` the file — far cheaper than many `read` calls.
 3. `discord download <jump_url>` (add `--name <substr>` or `--index N` if the
    message has several files). Files are **saved, never executed** — report the
    path and size; leave running/installing to the user.
+4. If the mod is an **external link** (no Discord attachment), `download` returns
+   the message's `links`/`embeds` instead — hand those to the browser/download
+   tools rather than expecting a saved file.
 
 ## Notes
 - Search is server-scoped by Discord's design (`--server` required). It *does*
@@ -90,6 +105,13 @@ then `Read` the file — far cheaper than many `read` calls.
 - `--filename` matches whole filename tokens (e.g. `GameBridgev0.3.rar`), not
   arbitrary substrings. For partial/loose file matching use `--ext <ext>` plus a
   content query.
+- **DMs are private.** `dms` and `search --dm` reach the user's direct messages —
+  only touch them when the user's request is clearly about DMs, and never dump DM
+  contents unprompted.
+- `mentions` is the fastest way to answer "did anyone ping me about X lately."
+  `events` returns `[]` when a server has nothing scheduled (not an error).
+- Text channels expose only their *archived* threads over REST (active ones need
+  the gateway); forum posts come back complete.
 - Full member lists need the gateway — use `collect.py` in this skill's directory
   (writes `graph-data.js` for `viz.html`, the mutual-server graph), not the REST
   commands above.

@@ -2,9 +2,11 @@
 discord_cli.py — read-only CLI over a Discord *user* account.
 
 Lets Claude (or you) search servers, browse channels, read history and forum
-posts, and download attachments — all over the authenticated REST endpoints, no
-gateway connection and NO write capability (there is deliberately no send/edit/
-delete/react command, so it can never post on your behalf).
+posts, look up profiles/mentions/DMs, and download attachments — all over the
+authenticated REST endpoints, no gateway connection and NO write capability
+(there is deliberately no message-writing command — no send/edit/delete or
+add-reaction — so it can never post on your behalf; `reactions` only reads who
+reacted).
 
     !!  Driving a user account is against Discord's ToS and can get it banned.  !!
     !!  Read-only + on-demand keeps the footprint low, but the risk isn't zero. !!
@@ -98,6 +100,24 @@ def parse_locator(args_list: list[str]) -> tuple[int, int]:
     sys.exit("Give a jump URL (https://discord.com/channels/…/…/…) or: <channel_id> <message_id>")
 
 
+URL_RE = re.compile(r"https?://[^\s<>|]+")
+
+
+def extract_links(text: str | None) -> list[str]:
+    return URL_RE.findall(text or "")
+
+
+def fmt_embed(e) -> dict:
+    d = {"type": e.type, "title": e.title, "url": e.url}
+    if e.description:
+        d["description"] = e.description[:600]
+    if e.fields:
+        d["fields"] = [{"name": f.name, "value": f.value} for f in e.fields]
+    if e.author and e.author.name:
+        d["author"] = e.author.name
+    return {k: v for k, v in d.items() if v}
+
+
 def fmt_channel(ch) -> dict:
     return {
         "id": str(ch.id),
@@ -128,10 +148,44 @@ def fmt_message(msg, guild_id=None) -> dict:
              "content_type": a.content_type}
             for a in msg.attachments
         ],
-        "embeds": len(msg.embeds),
+        "embeds": [fmt_embed(e) for e in msg.embeds],
+        "links": extract_links(msg.content),
         "reactions": [{"emoji": str(r.emoji), "count": r.count} for r in msg.reactions],
         "pinned": msg.pinned,
         "jump_url": jump,
+    }
+
+
+def fmt_raw_message(d: dict) -> dict:
+    """Format a raw message dict (e.g. from the recent-mentions endpoint)."""
+    author = d.get("author") or {}
+    gid = d.get("guild_id")
+    content = d.get("content") or ""
+    return {
+        "id": d.get("id"),
+        "guild_id": gid,
+        "channel_id": d.get("channel_id"),
+        "author": author.get("global_name") or author.get("username"),
+        "author_id": author.get("id"),
+        "ts": d.get("timestamp"),
+        "content": content,
+        "attachments": [{"filename": a.get("filename"), "size": a.get("size")}
+                        for a in d.get("attachments", [])],
+        "links": extract_links(content),
+        "jump_url": f"https://discord.com/channels/{gid or '@me'}/"
+                    f"{d.get('channel_id')}/{d.get('id')}",
+    }
+
+
+def fmt_thread(t) -> dict:
+    return {
+        "id": str(t.id),
+        "title": t.name,
+        "owner_id": str(t.owner_id) if t.owner_id else None,
+        "message_count": t.message_count,
+        "archived": t.archived,
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "jump_url": f"https://discord.com/channels/{t.guild.id}/{t.id}",
     }
 
 
@@ -239,9 +293,7 @@ async def cmd_channels(client, args):
     out([fmt_channel(c) for c in channels])
 
 
-async def cmd_search(client, args):
-    gid = await resolve_guild_id(client, args.server)
-    guild = await client.fetch_guild(gid)
+def build_search_kwargs(args) -> dict:
     kwargs = {"limit": args.limit, "most_relevant": args.relevant}
     if args.has:
         kwargs["has"] = args.has
@@ -255,19 +307,51 @@ async def cmd_search(client, args):
         kwargs["attachment_filenames"] = args.filename
     if args.ext:
         kwargs["attachment_extensions"] = args.ext
-    if args.channel:
-        # Pass the real channel objects (not bare Object ids): the library uses
-        # them to build result Message objects and needs their guild_id, which a
-        # bare Object lacks under our gateway-free (uncached) login.
-        kwargs["channels"] = [await resolve_channel(client, c, args.server)
-                              for c in args.channel]
     before, after = parse_when(args.before), parse_when(args.after)
     if before:
         kwargs["before"] = before
     if after:
         kwargs["after"] = after
-    name_map = {str(c.id): c.name for c in await guild.fetch_channels()}
+    return kwargs
+
+
+async def cmd_search(client, args):
+    kwargs = build_search_kwargs(args)
     content = args.query if args.query else discord.utils.MISSING
+
+    if args.dm:
+        # Search a single DM / group DM (opt-in; your most private data).
+        ch = await client.fetch_channel(int(args.dm))
+        out([fmt_message(m) async for m in ch.search(content, **kwargs)])
+        return
+
+    if args.all_servers:
+        # Sweep every guild. Heavier + rate-limited, so be gentle and label rows.
+        results = []
+        for g in await client.fetch_guilds(with_counts=False):
+            try:
+                guild = await client.fetch_guild(g.id)
+                async for msg in guild.search(content, **kwargs):
+                    row = fmt_message(msg, guild_id=g.id)
+                    row["server"] = g.name
+                    results.append(row)
+            except Exception:  # noqa: BLE001 - skip guilds we can't search
+                continue
+            await asyncio.sleep(0.4)
+        out(results)
+        return
+
+    if not args.server:
+        sys.exit("search needs --server (or --all-servers, or --dm <channel_id>).")
+    gid = await resolve_guild_id(client, args.server)
+    guild = await client.fetch_guild(gid)
+    if args.channel:
+        # Pass real channel objects (not bare Object ids): the library uses them
+        # to build result Message objects and needs their guild_id, which a bare
+        # Object lacks under our gateway-free (uncached) login.
+        kwargs["channels"] = [await resolve_channel(client, c, args.server)
+                              for c in args.channel]
+    name_map = {str(c.id): c.name for c in await guild.fetch_channels()}
     results = []
     async for msg in guild.search(content, **kwargs):
         row = fmt_message(msg, guild_id=gid)
@@ -295,10 +379,17 @@ async def cmd_read(client, args):
 
 
 async def cmd_threads(client, args):
-    forum = await resolve_channel(client, args.forum, args.server)
-    posts = await forum_posts(client, forum, limit=args.limit,
+    ch = await resolve_channel(client, args.forum, args.server)
+    if isinstance(ch, discord.ForumChannel):
+        out(await forum_posts(client, ch, limit=args.limit,
                               active=not args.archived_only,
-                              archived=not args.active_only)
+                              archived=not args.active_only))
+        return
+    # Text/news channel: list its (public) archived threads over REST. Active
+    # threads need the gateway, so they may be incomplete here.
+    posts = []
+    async for t in ch.archived_threads(limit=args.limit):
+        posts.append(fmt_thread(t))
     out(posts)
 
 
@@ -331,8 +422,11 @@ async def cmd_download(client, args):
     msg = await ch.fetch_message(message_id)  # fresh, signed attachment URLs
     atts = msg.attachments
     if not atts:
-        out({"downloaded": [], "note": "No attachments on this message.",
-             "content": msg.content, "embeds": len(msg.embeds)})
+        # Surface links/embeds so an externally-hosted file (Mega/GDrive/GitHub)
+        # is still actionable even though there's no Discord attachment.
+        out({"downloaded": [], "note": "No Discord attachments; see links/embeds.",
+             "content": msg.content, "links": extract_links(msg.content),
+             "embeds": [fmt_embed(e) for e in msg.embeds]})
         return
     if args.index is not None:
         atts = [atts[args.index]]
@@ -382,6 +476,77 @@ async def cmd_export(client, args):
     out({"exported": str(dest), "messages_channel": str(ch.id)})
 
 
+async def cmd_mentions(client, args):
+    kwargs = {"limit": args.limit, "roles": not args.no_roles,
+              "everyone": not args.no_everyone}
+    if args.server:
+        kwargs["guild_id"] = discord.Object(id=await resolve_guild_id(client, args.server))
+    data = await client.http.get_recent_mentions(**kwargs)
+    out([fmt_raw_message(d) for d in data])
+
+
+async def cmd_dms(client, args):
+    rows = []
+    for c in await client.fetch_private_channels():
+        if isinstance(c, discord.GroupChannel):
+            rows.append({"id": str(c.id), "type": "group", "name": c.name,
+                         "recipients": [r.name for r in c.recipients]})
+        else:
+            r = c.recipient
+            rows.append({"id": str(c.id), "type": "dm",
+                         "name": r.name if r else None,
+                         "recipient_id": str(r.id) if r else None})
+    out(rows)
+
+
+async def cmd_user(client, args):
+    p = await client.fetch_user_profile(int(args.user_id))
+    name_map = {g.id: g.name for g in await client.fetch_guilds(with_counts=False)}
+    mutual = [{"id": str(mg.id),
+               "name": name_map.get(mg.id) or getattr(mg.guild, "name", None),
+               "nick": mg.nick}
+              for mg in (p.mutual_guilds or [])]
+    out({
+        "id": str(p.id),
+        "handle": p.name,
+        "display": p.global_name or p.name,
+        "bio": getattr(p, "bio", None) or None,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "is_friend": getattr(p, "is_friend", None),
+        "mutual_guilds": mutual,
+        "mutual_friends_count": getattr(p, "mutual_friends_count", None),
+        "connections": [{"type": getattr(x, "type", None), "name": getattr(x, "name", None),
+                         "verified": getattr(x, "verified", None)}
+                        for x in (getattr(p, "connections", None) or [])],
+    })
+
+
+async def cmd_reactions(client, args):
+    ch = await client.fetch_channel(int(args.channel))
+    msg = await ch.fetch_message(int(args.message))
+    rows = []
+    for r in msg.reactions:
+        entry = {"emoji": str(r.emoji), "count": r.count}
+        if args.users:
+            entry["users"] = [u.name async for u in r.users(limit=args.user_limit)]
+        rows.append(entry)
+    out({"message": str(msg.id), "jump_url": msg.jump_url, "reactions": rows})
+
+
+async def cmd_events(client, args):
+    gid = await resolve_guild_id(client, args.server)
+    guild = await client.fetch_guild(gid)
+    events = await guild.fetch_scheduled_events(with_counts=True)
+    out([{
+        "id": str(e.id), "name": e.name, "description": e.description,
+        "start": e.start_time.isoformat() if e.start_time else None,
+        "end": e.end_time.isoformat() if e.end_time else None,
+        "location": e.location or getattr(e.channel, "name", None),
+        "user_count": getattr(e, "user_count", None),
+        "status": str(e.status), "url": e.url,
+    } for e in events])
+
+
 # --- dispatch ---------------------------------------------------------------
 
 async def run(fn, args):
@@ -415,7 +580,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = add("search", cmd_search, "search messages in a server")
     sp.add_argument("query", nargs="?", help="text to search (optional if using filters)")
-    sp.add_argument("--server", required=True)
+    sp.add_argument("--server", help="server name/id (required unless --all-servers/--dm)")
+    sp.add_argument("--all-servers", action="store_true", help="search every server (slower)")
+    sp.add_argument("--dm", help="search a DM/group channel id instead of a server")
     sp.add_argument("--channel", action="append", help="restrict to channel(s); repeatable")
     sp.add_argument("--author", action="append", help="author user id; repeatable")
     sp.add_argument("--mentions", action="append", help="mentioned user id; repeatable")
@@ -435,12 +602,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--before"); sp.add_argument("--after"); sp.add_argument("--around")
     sp.add_argument("--pinned", action="store_true", help="list pinned messages instead")
 
-    sp = add("threads", cmd_threads, "list posts in a forum channel")
-    sp.add_argument("forum")
+    sp = add("threads", cmd_threads, "list posts/threads in a forum or text channel")
+    sp.add_argument("forum", help="forum or text channel (name or id)")
     sp.add_argument("--server")
     sp.add_argument("--limit", type=int, default=50, help="max posts to return")
-    sp.add_argument("--active-only", action="store_true", help="skip archived posts")
-    sp.add_argument("--archived-only", action="store_true", help="only archived posts")
+    sp.add_argument("--active-only", action="store_true", help="forum: skip archived posts")
+    sp.add_argument("--archived-only", action="store_true", help="forum: only archived posts")
 
     sp = add("thread", cmd_thread, "read one thread / forum post")
     sp.add_argument("thread_id")
@@ -461,6 +628,25 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--limit", type=int, default=1000, help="messages per channel/thread")
     sp.add_argument("--threads", type=int, default=50, help="archived forum posts to include")
     sp.add_argument("--out")
+
+    sp = add("mentions", cmd_mentions, "recent messages that mention you (inbox)")
+    sp.add_argument("--server", help="only mentions from this server")
+    sp.add_argument("--limit", type=int, default=25)
+    sp.add_argument("--no-roles", action="store_true", help="exclude role mentions")
+    sp.add_argument("--no-everyone", action="store_true", help="exclude @everyone/@here")
+
+    add("dms", cmd_dms, "list your DM and group-DM channels")
+
+    sp = add("user", cmd_user, "look up a user's profile + mutual servers")
+    sp.add_argument("user_id")
+
+    sp = add("reactions", cmd_reactions, "read reactions on a message (who reacted)")
+    sp.add_argument("channel"); sp.add_argument("message")
+    sp.add_argument("--users", action="store_true", help="also list who reacted")
+    sp.add_argument("--user-limit", type=int, default=50)
+
+    sp = add("events", cmd_events, "list a server's scheduled events")
+    sp.add_argument("server")
 
     return p
 
