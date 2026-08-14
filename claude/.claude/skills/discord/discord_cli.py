@@ -256,8 +256,11 @@ async def cmd_search(client, args):
     if args.ext:
         kwargs["attachment_extensions"] = args.ext
     if args.channel:
-        chans = [await resolve_channel(client, c, args.server) for c in args.channel]
-        kwargs["channels"] = [discord.Object(id=c.id) for c in chans]
+        # Pass the real channel objects (not bare Object ids): the library uses
+        # them to build result Message objects and needs their guild_id, which a
+        # bare Object lacks under our gateway-free (uncached) login.
+        kwargs["channels"] = [await resolve_channel(client, c, args.server)
+                              for c in args.channel]
     before, after = parse_when(args.before), parse_when(args.after)
     if before:
         kwargs["before"] = before

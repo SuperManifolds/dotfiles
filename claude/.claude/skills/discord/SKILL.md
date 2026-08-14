@@ -87,6 +87,9 @@ then `Read` the file — far cheaper than many `read` calls.
   index messages inside threads/forum posts.
 - Search hits inside forum posts show `channel: null` (the "channel" is a thread);
   the `jump_url` and `channel_id` still work with `read`/`thread`/`download`.
+- `--filename` matches whole filename tokens (e.g. `GameBridgev0.3.rar`), not
+  arbitrary substrings. For partial/loose file matching use `--ext <ext>` plus a
+  content query.
 - Full member lists need the gateway — use `collect.py` in this skill's directory
   (writes `graph-data.js` for `viz.html`, the mutual-server graph), not the REST
   commands above.
