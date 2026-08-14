@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Discord mutual-server graph</title>
+<script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<script src="https://unpkg.com/layout-base@2.0.1/layout-base.js"></script>
+<script src="https://unpkg.com/cose-base@2.2.0/cose-base.js"></script>
+<script src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+<!-- Data written by collect.py -> window.GRAPH_DATA. Loaded as a script so this
+     page works from file:// without a server (no fetch/CORS headache). -->
+<script src="graph-data.js"></script>
+<style>
+  :root { --bg:#1b1e24; --panel:#252a33; --ink:#e6e9ef; --muted:#9aa4b2; --accent:#5865f2; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  #cy { position:absolute; inset:0; }
+  #panel {
+    position:absolute; top:12px; left:12px; width:270px; padding:14px 16px;
+    background:var(--panel); border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.4);
+    font-size:13px; z-index:5;
+  }
+  #panel h1 { font-size:14px; margin:0 0 8px; }
+  #panel .row { margin:10px 0; }
+  #panel label { display:block; color:var(--muted); margin-bottom:4px; }
+  #panel input[type=range] { width:100%; }
+  #panel input[type=text] { width:100%; padding:5px 7px; border-radius:6px; border:1px solid #3a414d; background:#1b1e24; color:var(--ink); }
+  #stats { color:var(--muted); font-size:12px; line-height:1.5; }
+  #info { position:absolute; top:12px; right:12px; width:290px; max-height:80vh; overflow:auto;
+    padding:14px 16px; background:var(--panel); border-radius:10px; font-size:13px; z-index:5; display:none; }
+  #info h2 { font-size:14px; margin:0 0 8px; word-break:break-word; }
+  #info ul { margin:6px 0 0; padding-left:18px; }
+  #info .muted { color:var(--muted); }
+  .pill { display:inline-block; padding:1px 7px; border-radius:10px; background:#3a414d; font-size:11px; }
+  a.close { float:right; color:var(--muted); text-decoration:none; cursor:pointer; }
+  code { background:#1b1e24; padding:1px 4px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="cy"></div>
+
+<div id="panel">
+  <h1>Mutual-server graph</h1>
+  <div id="stats"></div>
+  <div class="row">
+    <label>Min shared servers: <span id="minVal"></span></label>
+    <input type="range" id="minShared" min="2" max="2" value="2" />
+  </div>
+  <div class="row">
+    <label>Find a person</label>
+    <input type="text" id="search" placeholder="username or display name" />
+  </div>
+  <div class="row">
+    <label>Layout</label>
+    <select id="layoutMode" style="width:100%;padding:5px;border-radius:6px;background:#1b1e24;color:var(--ink);border:1px solid #3a414d">
+      <option value="hub">Hub map (servers on a ring)</option>
+      <option value="force">Force-directed</option>
+    </select>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="serverLabels" checked /> Show server labels</label>
+  </div>
+  <div class="row">
+    <button id="layoutBtn" style="width:100%;padding:7px;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font-size:13px">Re-run layout</button>
+  </div>
+  <div class="row muted" style="font-size:11px;color:var(--muted)">
+    Lowering the slider adds nodes at the origin — hit <b>Re-run layout</b> to
+    place them. Click a node for details. Drag to pan, scroll to zoom.
+  </div>
+</div>
+
+<div id="info"><a class="close" onclick="document.getElementById('info').style.display='none'">×</a><div id="infoBody"></div></div>
+
+<script>
+const DATA = window.GRAPH_DATA;
+if (!DATA) {
+  document.body.innerHTML = '<p style="padding:2rem">No <code>graph-data.js</code> found. Run <code>collect.py</code> first.</p>';
+  throw new Error('no data');
+}
+
+const serverById = Object.fromEntries(DATA.servers.map(s => [s.id, s]));
+const maxShared = DATA.people.reduce((m, p) => Math.max(m, p.shared_count), 2);
+
+// --- build elements --------------------------------------------------------
+const elements = [];
+// server hubs (only those that actually connect to a kept person)
+const usedServers = new Set();
+DATA.people.forEach(p => p.shared.forEach(sid => usedServers.add(sid)));
+
+usedServers.forEach(sid => {
+  const s = serverById[sid] || { id: sid, name: sid };
+  elements.push({ data: { id: 's:' + sid, type: 'server', label: s.name,
+    member_count: s.member_count, coverage: s.coverage, collected: s.collected } });
+});
+
+DATA.people.forEach(p => {
+  elements.push({ data: { id: 'u:' + p.id, type: 'person', label: p.display || p.username || p.id,
+    username: p.username, shared_count: p.shared_count, discordId: p.id } });
+  p.shared.forEach(sid => {
+    elements.push({ data: { id: 'e:' + p.id + ':' + sid, source: 'u:' + p.id, target: 's:' + sid } });
+  });
+});
+
+// --- styling ---------------------------------------------------------------
+// color person nodes on a scale by how many servers they share.
+function personColor(n) {
+  const t = Math.min(1, (n - 2) / Math.max(1, maxShared - 2));
+  const from = [88, 101, 242], to = [235, 100, 120];      // blue -> warm
+  const c = from.map((f, i) => Math.round(f + (to[i] - f) * t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements,
+  style: [
+    { selector: 'node[type="server"]', style: {
+      'background-color': '#f2b705', 'shape': 'round-rectangle',
+      'label': 'data(label)', 'color': '#f6d365', 'font-size': 11, 'font-weight': 'bold',
+      'text-valign': 'center', 'text-halign': 'center', 'text-wrap': 'wrap', 'text-max-width': 100,
+      'width': 46, 'height': 46, 'border-width': 3, 'border-color': '#8a6d00', 'z-index': 10 } },
+    { selector: 'node[type="person"]', style: {
+      'background-color': ele => personColor(ele.data('shared_count')),
+      'width': ele => 10 + ele.data('shared_count') * 4,
+      'height': ele => 10 + ele.data('shared_count') * 4,
+      'label': '', 'color': '#e6e9ef', 'font-size': 9 } },
+    { selector: 'edge', style: {
+      'width': 1, 'line-color': '#3a414d', 'curve-style': 'haystack', 'opacity': 0.12 } },
+    { selector: '.faded', style: { 'opacity': 0.07 } },
+    { selector: '.hi', style: { 'opacity': 1, 'border-width': 3, 'border-color': '#ffffff', 'label': 'data(label)' } },
+    { selector: 'edge.hi', style: { 'line-color': '#8a94a6', 'opacity': 0.9, 'width': 2 } },
+  ],
+  wheelSensitivity: 0.2,
+  // Large-graph rendering: don't redraw edges/labels while panning or zooming.
+  hideEdgesOnViewport: true,
+  textureOnViewport: true,
+  motionBlur: false,
+  pixelRatio: 1,
+});
+
+const GOLDEN = 2.399963229728653; // radians, for even sunflower packing
+
+// Deterministic bipartite layout: servers pinned on a ring, each person placed at
+// the centroid of the servers they belong to. People are grouped by their exact
+// server-set so every distinct co-membership pattern becomes its own labelled
+// blob sitting between the servers it spans. O(n), instant, and it actually shows
+// structure — unlike force layout, which piles multi-server people in the centre.
+function hubLayout() {
+  const servers = cy.nodes('[type="server"]:visible');
+  const R = Math.max(400, servers.length * 55);
+  const pos = {};
+  servers.forEach((s, i) => {
+    const a = (2 * Math.PI * i) / servers.length - Math.PI / 2;
+    pos[s.id()] = { x: R * Math.cos(a), y: R * Math.sin(a) };
+  });
+
+  const groups = new Map();
+  cy.nodes('[type="person"]:visible').forEach(p => {
+    const hubIds = p.connectedEdges().connectedNodes('[type="server"]:visible')
+      .map(h => h.id()).sort();
+    const key = hubIds.join(',');
+    if (!groups.has(key)) groups.set(key, { hubIds, people: [] });
+    groups.get(key).people.push(p);
+  });
+
+  groups.forEach(({ hubIds, people }) => {
+    let cx = 0, cy0 = 0, n = 0;
+    hubIds.forEach(id => { const q = pos[id]; if (q) { cx += q.x; cy0 += q.y; n++; } });
+    if (n === 0) n = 1; else { cx /= n; cy0 /= n; }
+    // Pull each group's centre slightly outward from the middle so 2-server groups
+    // (near a chord midpoint) don't crowd the many-server groups at the centre.
+    people.forEach((p, k) => {
+      const r = 14 * Math.sqrt(k + 1);       // sunflower packing within the blob
+      const a = k * GOLDEN;
+      pos[p.id()] = { x: cx + r * Math.cos(a), y: cy0 + r * Math.sin(a) };
+    });
+  });
+
+  cy.layout({ name: 'preset', positions: node => pos[node.id()], fit: true,
+    padding: 50, animate: false }).run();
+}
+
+function forceLayout(done) {
+  const eles = cy.elements(':visible');
+  const l = eles.layout({
+    name: 'fcose', quality: 'default', randomize: true, animate: false,
+    nodeRepulsion: n => n.data('type') === 'server' ? 400000 : 12000,
+    idealEdgeLength: () => 220, edgeElasticity: () => 0.05,
+    gravity: 0.06, gravityRange: 4.5, nodeSeparation: 220, numIter: 3000,
+    packComponents: false, nodeDimensionsIncludeLabels: true, tile: true,
+  });
+  l.one('layoutstop', done);
+  setTimeout(() => l.run(), 30);
+}
+
+function runLayout() {
+  const btn = document.getElementById('layoutBtn');
+  btn.textContent = 'Laying out…';
+  const finish = () => { cy.fit(cy.elements(':visible'), 40); btn.textContent = 'Re-run layout'; };
+  if (document.getElementById('layoutMode').value === 'force') {
+    forceLayout(finish);
+  } else {
+    setTimeout(() => { hubLayout(); finish(); }, 30);
+  }
+}
+
+// --- interactions ----------------------------------------------------------
+const minSlider = document.getElementById('minShared');
+minSlider.max = maxShared;
+// The hub layout is O(n) so it can show everyone (>=2) at once; that's also the
+// view where structure appears (degree-2 people land between their two servers).
+const startMin = 2;
+minSlider.value = startMin;
+document.getElementById('minVal').textContent = startMin;
+
+function applyMinFilter() {
+  const n = +minSlider.value;
+  document.getElementById('minVal').textContent = n;
+  cy.batch(() => {
+    cy.nodes('[type="person"]').forEach(node => {
+      const show = node.data('shared_count') >= n;
+      node.style('display', show ? 'element' : 'none');
+    });
+    // hide servers that end up with no visible people
+    cy.nodes('[type="server"]').forEach(s => {
+      const vis = s.connectedEdges().connectedNodes('[type="person"]')
+        .filter(p => p.style('display') !== 'none').length;
+      s.style('display', vis ? 'element' : 'none');
+    });
+  });
+  updateStats();
+}
+
+function updateStats() {
+  const people = cy.nodes('[type="person"]:visible').length;
+  const servers = cy.nodes('[type="server"]:visible').length;
+  const partial = DATA.servers.filter(s => s.coverage && s.coverage !== 'full').length;
+  document.getElementById('stats').innerHTML =
+    `<b>${people}</b> people · <b>${servers}</b> servers shown<br>` +
+    `You are in <b>${DATA.servers.length}</b> servers` +
+    (partial ? `<br><span style="color:#e88">${partial} had partial coverage</span>` : '');
+}
+
+minSlider.addEventListener('input', applyMinFilter);
+
+document.getElementById('serverLabels').addEventListener('change', e => {
+  cy.nodes('[type="server"]').style('label', e.target.checked ? 'data(label)' : '');
+});
+
+document.getElementById('layoutBtn').addEventListener('click', () => runLayout());
+document.getElementById('layoutMode').addEventListener('change', () => runLayout());
+
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  cy.elements().removeClass('hi faded');
+  if (!q) return;
+  const matches = cy.nodes('[type="person"]').filter(n =>
+    (n.data('label') || '').toLowerCase().includes(q) ||
+    (n.data('username') || '').toLowerCase().includes(q));
+  if (matches.length === 0) return;
+  cy.elements().addClass('faded');
+  const hood = matches.closedNeighborhood();
+  hood.removeClass('faded').addClass('hi');
+  if (matches.length) cy.animate({ fit: { eles: hood, padding: 80 }, duration: 400 });
+});
+
+cy.on('tap', 'node', evt => {
+  const n = evt.target;
+  cy.elements().removeClass('hi faded').addClass('faded');
+  n.closedNeighborhood().removeClass('faded').addClass('hi');
+  showInfo(n);
+});
+cy.on('tap', evt => { if (evt.target === cy) { cy.elements().removeClass('hi faded'); } });
+
+function showInfo(n) {
+  const info = document.getElementById('info');
+  const body = document.getElementById('infoBody');
+  if (n.data('type') === 'person') {
+    const servers = n.connectedEdges().connectedNodes('[type="server"]')
+      .map(s => s.data('label')).sort();
+    body.innerHTML =
+      `<h2>${escapeHtml(n.data('label'))} <span class="pill">${n.data('shared_count')} shared</span></h2>` +
+      `<div class="muted">@${escapeHtml(n.data('username') || '')}<br>ID: ${n.data('discordId')}</div>` +
+      `<div style="margin-top:8px">Shares these servers with you:</div>` +
+      `<ul>${servers.map(s => '<li>' + escapeHtml(s) + '</li>').join('')}</ul>`;
+  } else {
+    const cnt = n.connectedEdges().connectedNodes('[type="person"]')
+      .filter(p => p.style('display') !== 'none').length;
+    body.innerHTML =
+      `<h2>${escapeHtml(n.data('label'))}</h2>` +
+      `<div class="muted">${n.data('member_count') ?? '?'} members · collected ${n.data('collected') ?? '?'}` +
+      `<br>coverage: ${escapeHtml(n.data('coverage') || '?')}</div>` +
+      `<div style="margin-top:8px"><b>${cnt}</b> shown people are also here.</div>`;
+  }
+  info.style.display = 'block';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// Initial paint: filter to the starting threshold, then lay out that subset.
+applyMinFilter();
+runLayout();
+</script>
+</body>
+</html>

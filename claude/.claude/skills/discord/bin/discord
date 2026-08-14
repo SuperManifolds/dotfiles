@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Self-contained launcher for the read-only Discord CLI.
+# Resolves its real location (this file is stow-symlinked into ~/.claude), and
+# bootstraps a private venv on first run so the skill is portable — nothing
+# machine-specific is committed to the dotfiles repo.
+set -euo pipefail
+
+# Real path of this script's directory, following the stow symlink to the repo.
+SELF="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${BASH_SOURCE[0]}")"
+HERE="$(dirname "$(dirname "$SELF")")"
+
+VENV="${XDG_CACHE_HOME:-$HOME/.cache}/discord-skill/venv"
+PYBIN="$VENV/bin/python"
+
+if [ ! -x "$PYBIN" ]; then
+    echo "discord skill: creating venv + installing deps (first run only)…" >&2
+    python3 -m venv "$VENV"
+    "$VENV/bin/pip" install -q --upgrade pip >/dev/null 2>&1 || true
+    "$VENV/bin/pip" install -q -r "$HERE/requirements.txt" >&2
+fi
+
+exec "$PYBIN" "$HERE/discord_cli.py" "$@"

@@ -1,0 +1,7 @@
+# Machine-specific / generated — never commit.
+.venv/
+__pycache__/
+*.pyc
+graph.json
+graph-data.js
+real-graph.png

@@ -1,0 +1,3 @@
+# Self-bot library that speaks the user (client) Gateway/REST endpoints.
+# NOTE: automating a user account violates Discord's ToS; use at your own risk.
+discord.py-self>=2.0.0
