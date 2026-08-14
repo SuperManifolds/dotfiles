@@ -11,8 +11,10 @@ and turn them into a posted review on `$ARGUMENTS` (or the PR for the current br
 
 This skill does **not** find bugs. If there are no findings yet, run `/review-pr` first.
 
-The pipeline is: read the authority → verify → filter → classify → draft → **the reviewer approves**
-→ post. The approval gate is not ceremony; it is what makes the comments legitimate.
+The pipeline is: read the authority → verify → filter → classify → **inventory, the reviewer cuts** →
+draft → **the reviewer signs off** → post. The two gates are not ceremony; they are what makes the
+comments legitimate, and the first one is what stops polished prose being written for findings that
+are about to be cut.
 
 Throughout, `REPO` and `ME` are resolved from the environment rather than hardcoded:
 
@@ -41,8 +43,11 @@ comment. What the policy forbids is unattended tooling posting raw, unfiltered o
 against the source rather than trusting this summary.
 
 Two things stay unconditional regardless:
-- **Never select APPROVE on the reviewer's behalf.** An approval is personal accountability for the
-  change. Post `event: "COMMENT"` and hand back the verdict command.
+- **Never choose the verdict yourself.** Default to handing back the command with a recommendation
+  (Step 7). If the reviewer has read the drafts and explicitly tells you to approve, submit
+  `--approve`: that is their decision and you are executing it, not making it. What stays forbidden
+  is inferring an approval from silence, from "looks good", or from green CI. Refusing a direct,
+  informed instruction to approve is its own failure, not caution.
 - **Never post without sign-off on the drafts** (Step 5). The skill's own iteration is not approval.
 
 Also load the numbered principles if the document has them. The ones that change the output:
@@ -102,17 +107,36 @@ design disagreement: put it in the body as a question, or leave it out.
 Beware of verifying with the wrong instrument. A check that reads the wrong file, or a shape test
 where a real parse was needed, produces a false pass that reads exactly like a real one.
 
+Every number that reaches a draft (exit code, count, size, duration) gets re-derived with a second,
+differently-shaped command before you write it down. Never read `$?` through a pipe: it reports the
+last command in the pipeline, so `cmd | head` tells you about `head`. Drop the pipe, redirect to a
+file, or use `PIPESTATUS`. A wrong measurement stated flatly in the reviewer's voice is the most
+expensive mistake this skill can make, because it reads exactly as confidently as a right one.
+
+When verification needs a credential you cannot hold, do not iterate single commands through the
+reviewer. Write one read-only script, hand them the single command that runs it, and ask for the
+output. Never ask for a token. If one gets volunteered anyway, use it without writing it to disk, and
+tell them it is now in the transcript and worth revoking.
+
 ## Step 3: Filter hard
 
 This is the step that gets skipped and it is the most important one. One high-signal finding beats
 twenty plausible ones, and a review with twenty comments is a smell rather than thoroughness.
 
-From the candidate set, keep only what a person should spend attention on. Target shape:
+From the candidate set, keep only what a person should spend attention on. These are ceilings, not
+quotas:
 
-- **0-2 blockers.** Dangerous, incomplete or broken. Label `blocker:`.
-- **2-5 flags.** Worth knowing, author decides. Label `flag:`.
-- **2-4 nits.** Small, take or leave. Label `nit:`.
+- **At most 2 blockers.** Dangerous, incomplete or broken. Label `blocker:`.
+- **At most 5 flags.** Worth knowing, author decides. Label `flag:`.
+- **At most 4 nits.** Small, take or leave. Label `nit:`.
 - **Everything else → the issue tracker** (Step 7), not a PR comment.
+
+A verification body with no inline comments at all is a complete, good review, and it is the common
+outcome for a small, well-tested change. If all you have is wording preferences in a doc that is
+already accurate enough to use, post the body and stop. Never pad toward the numbers above: working
+to fill a shape is how invented nits get written, and the reviewer deletes them at the gate anyway.
+If the repo's policy has a "when either way is acceptable, approve without a comment" principle, that
+outranks any count in this skill.
 
 Drop, do not post: findings on pre-existing code the diff only sits beside, style preferences that
 cause no bug, missing tests and missing docs (tracker items), and anything where the realistic
@@ -120,12 +144,18 @@ worst case has no concrete harm.
 
 Fold near-duplicates into one comment with several line references rather than one comment each.
 
+Then ask, per survivor: is this faster to fix than to describe? Doc-only wording and one-line changes
+usually are, and the repo's policy may well prefer the fix (pushing commits to the branch) over the
+comment. Apply it locally, show `git diff`, and never commit or push without an explicit instruction.
+On someone else's branch, say whose branch it is before proposing a push.
+
 ## Step 4: Draft
 
 **Body.** Longer than an inline comment is fine. Structure that has worked:
 
-1. One short sentence of concrete praise, naming the author. Inline comments carry no praise, so
-   this is the only place it goes.
+1. One short clause of concrete praise, naming the author. Inline comments carry no praise, so this
+   is the only place it goes. Keep it to a clause and make it trivially deletable, since reviewers
+   often trim it to something plainer or cut it outright.
 2. The blocker in two or three sentences, with the repro, ending `Details inline.`
 3. What you verified, as a flat list of commands and results, plus what you did not run.
 4. Anything worth knowing that is not a comment (e.g. a test cell that gives some path no
@@ -136,15 +166,42 @@ with the observation, no preamble, no narration of how you verified beyond the e
 
 ## Step 5: Human review gate
 
-Present the body and every comment **in the conversation**, as quoted blocks readable without
-opening a file. Do not post yet.
+Two phases, because polished prose thrown away is the most wasted work in this skill.
+
+**Phase 1, the inventory.** Before writing any final prose, present a numbered list of survivors, one
+line each:
+
+```
+F1  flag  README.md:17   tasks only exist inside this directory, root invocation dumps mise help
+F2  nit   README.md:20   the `--` is not actually required for flags
+```
+
+Give every candidate a stable ID that cannot be read as a line number (`F1`, `F2`, …), and never
+present a bare number that could mean either a finding or a line. Split a comment that bundles
+several line references into `F2a` / `F2b`, so cutting half of it is expressible without prose. Then
+get keep/cut decisions on the list.
+
+**Phase 2, the drafts.** Write full prose only for what survived Phase 1, and present the body and
+every comment **in the conversation**, as quoted blocks readable without opening a file. Do not post
+yet.
+
+Expect the reviewer to narrow more than once, including all the way down to zero comments, and treat
+each narrowing as normal rather than as a restart. Re-present only what changed, and when they supply
+wording, drop it in verbatim rather than reworking the sentence around it.
 
 Then wait. Post only on an explicit instruction to post. If the drafts have not been read, there is
 no instruction that authorises posting.
 
 ## Step 6: Post
 
-Resolve anchors first. **Every inline comment's line must fall inside a diff hunk** or the API
+With no inline comments, skip the payload entirely. Write the body to a file and let `gh` handle the
+escaping, which also makes the command copy-pasteable for the reviewer to run themselves:
+
+```
+gh pr review <n> --comment --body-file <path>      # or --approve, per Step 0
+```
+
+With inline comments, resolve anchors first. **Every inline comment's line must fall inside a diff hunk** or the API
 rejects the whole review:
 
 ```
@@ -160,7 +217,7 @@ Build the payload with a script, not by hand, so escaping is right:
 
 ```
 commit_id: <gh api "/repos/$REPO/pulls/<n>" --jq .head.sha>
-event:     "COMMENT"          # never APPROVE
+event:     "COMMENT"          # "APPROVE" only on an explicit instruction (Step 0)
 body:      <the body>
 comments:  [{path, line, side: "RIGHT", body}, ...]
 ```
@@ -186,17 +243,24 @@ If a comment came back unanchored, say so rather than reporting success.
 
 Report the review URL, then:
 
-- **The verdict.** Unset, with the command ready:
-  `gh pr review <n> --approve -b "..."` or `--request-changes -b "..."`. Give a recommendation and
-  the argument on both sides; do not choose. Approve-with-comments is the common case; request
-  changes only for dangerous, incomplete or broken work, since it forces another cycle.
+- **The verdict.** Leave it unset unless the reviewer told you to submit it. Give a recommendation and
+  the argument on both sides, then hand over the command:
+  `gh pr review <n> --approve --body-file <path>` or `--request-changes --body-file <path>`.
+  Recommending is yours, choosing is theirs, and executing is either. Approve-with-comments is the
+  common case; request changes only for dangerous, incomplete or broken work, since it forces another
+  cycle.
 - **Tracker follow-ups.** Written up and ready to file, deliberately kept out of the payload, since
   a follow-up needs a real home and a comment on a merged PR is not one. Offer to create them.
 
 ## Do not
 
 - Post before the drafts have been read.
-- Select APPROVE.
+- Select a verdict on your own initiative, or infer one from silence, "looks good", or green CI. When
+  the reviewer explicitly asks for the approve, submitting it is correct, and refusing is not.
 - Paste raw findings output into the PR. Filtering is the whole job.
+- Pad the comment count toward the ceilings in Step 3. Zero inline comments is a valid review.
+- Write final prose before the inventory has been agreed (Step 5, Phase 1).
+- Put a bare `#N` in front of the reviewer when it could read as either a finding or a line number.
+- Read `$?` through a pipe, or put any number in a draft that only one command ever produced.
 - Put missing tests, missing docs or scope-creep observations in PR comments instead of the tracker.
 - Reformat or "improve" wording the reviewer supplied.
