@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import getpass
 import json
 import logging
@@ -30,6 +31,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -590,8 +592,157 @@ async def cmd_events(client, args):
 
 # --- dispatch ---------------------------------------------------------------
 
+PROPS_CACHE = Path(
+    os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))
+) / "discord-skill" / "client-props.json"
+PROPS_TTL = 24 * 60 * 60
+
+
+def _install_props_cache() -> None:
+    """Cache the client fingerprint so each command stops re-fetching it.
+
+    discord.py-self rebuilds its super-properties on every login, which costs a
+    request to Discord's app page plus one to Chrome's version API. Since each
+    CLI invocation is its own login, a handful of commands turns into a burst of
+    identical fetches from one IP — exactly the pattern that reads as
+    automation. The build number changes maybe daily, so caching it for a day is
+    both safe and a big reduction in traffic.
+    """
+    from discord.utils import Headers
+
+    original = Headers.default.__func__
+
+    async def cached_default(cls, *a, **kw):
+        try:
+            blob = json.loads(PROPS_CACHE.read_text())
+            if time.time() - blob["stamp"] < PROPS_TTL:
+                props = blob["props"]
+                encoded = base64.b64encode(
+                    json.dumps(props, separators=(',', ':')).encode()
+                ).decode()
+                return Headers(
+                    platform='Windows',
+                    major_version=int(props['browser_version'].split('.')[0]),
+                    super_properties=props,
+                    encoded_super_properties=encoded,
+                    extra_gateway_properties=blob.get("extra", {}),
+                )
+        except Exception:
+            pass
+
+        headers = await original(cls, *a, **kw)
+        bn = headers.super_properties.get("client_build_number")
+        if bn == Headers.FALLBACK_BUILD_NUMBER:
+            # 9999 is the library's give-up value; sending it advertises a
+            # client build that cannot exist. Better to stop than to look fake.
+            sys.exit(
+                "Refusing to connect: could not fetch Discord's real client build "
+                "number, so requests would carry the bogus fallback (9999). Check "
+                "your network and retry."
+            )
+        try:
+            PROPS_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            PROPS_CACHE.write_text(json.dumps({
+                "stamp": time.time(),
+                "props": headers.super_properties,
+                "extra": getattr(headers, "extra_gateway_properties", {}),
+            }))
+        except Exception:
+            pass
+        return headers
+
+    Headers.default = classmethod(cached_default)
+
+
+RATE_LOG = PROPS_CACHE.parent / "reqlog.json"
+# Deliberately well under anything Discord would push back on. Each CLI run is
+# its own process, so the budget has to live on disk or consecutive commands
+# each start with a clean allowance and burst.
+MAX_PER_MINUTE = int(os.environ.get("DISCORD_MAX_PER_MINUTE", "15"))
+MIN_GAP_SECONDS = float(os.environ.get("DISCORD_MIN_GAP", "1.0"))
+WINDOW = 60.0
+
+
+def _reserve_slot() -> float:
+    """Claim the next allowed request time; returns seconds to wait.
+
+    Held under an exclusive lock so parallel invocations share one budget
+    rather than each believing it has the full allowance.
+    """
+    import fcntl
+
+    RATE_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(RATE_LOG, "a+") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            fh.seek(0)
+            try:
+                stamps = [float(x) for x in json.loads(fh.read() or "[]")]
+            except Exception:
+                stamps = []
+
+            now = time.time()
+            stamps = [t for t in stamps if now - t < WINDOW]
+
+            earliest = now
+            if stamps:
+                earliest = max(earliest, stamps[-1] + MIN_GAP_SECONDS)
+            if len(stamps) >= MAX_PER_MINUTE:
+                # Wait for the oldest request in the window to age out.
+                earliest = max(earliest, stamps[-MAX_PER_MINUTE] + WINDOW)
+
+            stamps.append(earliest)
+            fh.seek(0)
+            fh.truncate()
+            fh.write(json.dumps(stamps[-(MAX_PER_MINUTE * 2):]))
+            return max(0.0, earliest - now)
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+def _install_rate_limit() -> None:
+    """Pace every outbound request.
+
+    Two transports are in play: discord.py-self sends API calls through
+    curl_cffi (which impersonates Chrome's TLS fingerprint), while the
+    pre-login client-properties fetch goes over plain aiohttp. Both need
+    throttling, so patch both.
+    """
+    import aiohttp
+    from curl_cffi import requests as curl_requests
+
+    def wrap(cls, attr, status_of):
+        if getattr(cls, "_discord_skill_throttled", False):
+            return
+        original = getattr(cls, attr)
+
+        async def throttled(self, method, url, *a, **kw):
+            delay = _reserve_slot()
+            if delay > 0:
+                _log_throttle(delay)
+                await asyncio.sleep(delay)
+            resp = await original(self, method, url, *a, **kw)
+            if status_of(resp) == 429:
+                # Never argue with a 429 — say so and let the caller stop,
+                # rather than retrying into a harder block.
+                print("Rate limited by Discord. Backing off.", file=sys.stderr)
+            return resp
+
+        setattr(cls, attr, throttled)
+        cls._discord_skill_throttled = True
+
+    wrap(curl_requests.AsyncSession, "request", lambda r: getattr(r, "status_code", None))
+    wrap(aiohttp.ClientSession, "_request", lambda r: getattr(r, "status", None))
+
+
+def _log_throttle(delay: float) -> None:
+    if delay >= 0.5:
+        print(f"[rate limit] waiting {delay:.1f}s", file=sys.stderr)
+
 
 async def run(fn, args):
+    _install_props_cache()
+    _install_rate_limit()
     client = discord.Client()
     try:
         await client.login(get_token())
