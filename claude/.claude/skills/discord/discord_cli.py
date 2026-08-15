@@ -22,10 +22,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
 import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -44,29 +46,68 @@ for noisy in ("discord", "discord.client", "discord.gateway", "discord.http"):
 
 # --- auth -------------------------------------------------------------------
 
+def _keyring_backend() -> str | None:
+    """Which OS secret store to use: macOS Keychain or libsecret."""
+    if sys.platform == "darwin":
+        return "security" if shutil.which("security") else None
+    return "secret-tool" if shutil.which("secret-tool") else None
+
+
 def get_token() -> str:
     token = os.environ.get("DISCORD_TOKEN")
     if token:
         return token.strip()
-    try:
-        out = subprocess.run(
-            ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
-             "-a", KEYCHAIN_ACCOUNT, "-w"],
-            capture_output=True, text=True, check=True,
-        )
-        if out.stdout.strip():
-            return out.stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    sys.exit("No token found. Set DISCORD_TOKEN or run: discord auth store")
+
+    backend = _keyring_backend()
+    if backend == "security":
+        cmd = ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
+               "-a", KEYCHAIN_ACCOUNT, "-w"]
+    elif backend == "secret-tool":
+        cmd = ["secret-tool", "lookup", "service", KEYCHAIN_SERVICE,
+               "account", KEYCHAIN_ACCOUNT]
+    else:
+        cmd = None
+
+    if cmd:
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            if out.stdout.strip():
+                return out.stdout.strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+
+    hint = "" if backend else (
+        "\nNo OS secret store found. On Linux install libsecret "
+        "(provides secret-tool), or export DISCORD_TOKEN."
+    )
+    sys.exit(f"No token found. Set DISCORD_TOKEN or run: discord auth store{hint}")
 
 
 def store_token(token: str) -> None:
-    subprocess.run(
-        ["security", "add-generic-password", "-U", "-s", KEYCHAIN_SERVICE,
-         "-a", KEYCHAIN_ACCOUNT, "-w", token],
-        check=True,
-    )
+    backend = _keyring_backend()
+    if backend == "security":
+        # -w takes the secret as an argument; fine here since macOS `security`
+        # offers no stdin form.
+        subprocess.run(
+            ["security", "add-generic-password", "-U", "-s", KEYCHAIN_SERVICE,
+             "-a", KEYCHAIN_ACCOUNT, "-w", token],
+            check=True,
+        )
+    elif backend == "secret-tool":
+        # secret-tool reads the secret from stdin, so it never reaches argv or
+        # the process list.
+        subprocess.run(
+            ["secret-tool", "store", "--label", KEYCHAIN_SERVICE,
+             "service", KEYCHAIN_SERVICE, "account", KEYCHAIN_ACCOUNT],
+            input=token, text=True, check=True,
+        )
+    else:
+        sys.exit(
+            "No OS secret store available.\n"
+            "  macOS: `security` should already be present.\n"
+            "  Linux: install libsecret (provides secret-tool), or export "
+            "DISCORD_TOKEN in your shell profile."
+        )
 
 
 # --- helpers ----------------------------------------------------------------
@@ -549,6 +590,7 @@ async def cmd_events(client, args):
 
 # --- dispatch ---------------------------------------------------------------
 
+
 async def run(fn, args):
     client = discord.Client()
     try:
@@ -655,11 +697,25 @@ def main() -> None:
     args = build_parser().parse_args()
     if args.cmd == "auth":
         if args.action == "store":
-            token = args.token or sys.stdin.read().strip()
+            if args.token:
+                token = args.token.strip()
+            elif sys.stdin.isatty():
+                # Interactively, read one line. A bare sys.stdin.read() here
+                # waits for EOF rather than Enter and prints no prompt, so the
+                # terminal just looks frozen.
+                try:
+                    token = getpass.getpass("Discord token (input hidden): ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    sys.exit("\nAborted.")
+            else:
+                token = sys.stdin.read().strip()
             if not token:
-                sys.exit("Provide a token via --token or stdin.")
+                sys.exit("Provide a token via --token, stdin, or the prompt.")
+            if token.upper() in {"YOUR_TOKEN", "PASTE_THE_REAL_ONE_HERE", "TOKEN"}:
+                sys.exit(f"That's the placeholder text, not a token ({token!r}).")
             store_token(token)
-            print("Stored token in Keychain (service 'discord-cli').", file=sys.stderr)
+            where = "Keychain" if sys.platform == "darwin" else "libsecret keyring"
+            print(f"Stored token in {where} (service 'discord-cli').", file=sys.stderr)
             return
         # auth test
         asyncio.run(run(cmd_whoami, args))

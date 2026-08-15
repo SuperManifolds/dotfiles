@@ -15,7 +15,8 @@ this skill's launcher:
 
 On first use it bootstraps a private venv (in `~/.cache/discord-skill/`) and
 installs `discord.py-self` — so it's self-contained and portable via dotfiles.
-Token is in the macOS Keychain (service `discord-cli`), read automatically —
+Token is in the OS secret store (service `discord-cli`) — macOS Keychain or,
+on Linux, the libsecret keyring — read automatically;
 never pass it on the command line.
 
 **Read-only by construction.** There is no send/edit/delete/react command. Never
@@ -53,7 +54,7 @@ discord download <jumpUrl | channel_id msgid>   # save attachment(s)
     [--index N] [--name <substr>] [--out <dir>]  # default ~/Downloads/discord
 discord export <channel|forum> [--server <s>]   # dump to markdown file, then Read it
     [--limit 1000] [--threads 50] [--out file.md]
-discord auth store   # (once) read token from stdin into Keychain
+discord auth store   # (once) read token from stdin into the OS secret store
 discord whoami       # verify login
 ```
 

@@ -21,7 +21,7 @@ read-only and on-demand, which lowers but does not remove the risk.
 ## The `discord` CLI
 
 ```bash
-printf '%s' 'your-user-token' | bin/discord auth store   # once → macOS Keychain
+printf '%s' 'your-user-token' | bin/discord auth store   # once → OS secret store
 bin/discord whoami                                        # verify
 
 bin/discord servers
@@ -34,7 +34,8 @@ bin/discord download <jump_url> --name mymod.rar          # → ~/Downloads/disc
 bin/discord export <channel_or_forum_id> --out out.md     # bulk read → markdown
 ```
 
-Token resolves from Keychain (service `discord-cli`) or `DISCORD_TOKEN`. All
+Token resolves from the OS secret store (service `discord-cli`) — macOS
+Keychain via `security`, Linux via `secret-tool` (libsecret) — or `DISCORD_TOKEN`. All
 output is JSON on stdout (logs on stderr); pipe through `jq`. Run any command with
 `-h` for flags. Full command reference lives in the skill:
 `~/.claude/skills/discord/SKILL.md`.
