@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+# vmctl — thin per-worktree x86_64 VMs for root-level cruise/gVisor work.
+#
+# Each VM is a qcow2 overlay on one shared base cloud image: a few MB, instant to
+# create, and fully isolated — its own kernel, sysctls, /tmp, netns and docker. That
+# isolation is the point: cruise's work is global (ns_last_pid, shm_next_id priming,
+# SysV ids, iptables, ptrace), so two parallel worktrees sharing one machine would
+# collide on exactly those. One VM per worktree instead.
+#
+# Nothing runs unless started. `vmctl stop-all` clears the box for gaming.
+set -uo pipefail
+H="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The base new machines clone. Indirected through CURRENT_BASE so `vmctl golden`
+# can promote a provisioned image without touching the base files existing
+# overlays already point at.
+base_now() { cat "$H/CURRENT_BASE"; }
+BASE="$H/$(cat "$H/CURRENT_BASE" 2>/dev/null)"
+M="$H/machines"
+PORT_BASE=2222
+DEF_CPUS=4; DEF_MEM=8; DEF_DISK=60
+
+die() { echo "vmctl: $*" >&2; exit 1; }
+conf() { . "$M/$1/vm.conf"; }
+running() { [ -f "$M/$1/qemu.pid" ] && kill -0 "$(cat "$M/$1/qemu.pid")" 2>/dev/null; }
+
+next_port() {
+  local p=$PORT_BASE used
+  used=$(cat "$M"/*/vm.conf 2>/dev/null | sed -n 's/^PORT=//p')
+  while grep -qx "$p" <<<"$used" || ss -ltn "sport = :$p" 2>/dev/null | grep -q LISTEN; do
+    p=$((p+1))
+  done
+  echo "$p"
+}
+
+cmd_create() {
+  local name=${1:-} cpus=$DEF_CPUS mem=$DEF_MEM disk=$DEF_DISK; shift || true
+  [ -n "$name" ] || die "usage: vmctl create <name> [--cpus N] [--mem G] [--disk G]"
+  while [ $# -gt 0 ]; do case $1 in
+    --cpus) cpus=$2; shift 2;; --mem) mem=$2; shift 2;; --disk) disk=$2; shift 2;;
+    *) die "unknown flag $1";; esac; done
+  [ -d "$M/$name" ] && die "$name already exists"
+  [ -f "$BASE" ] || die "base image missing: $BASE"
+  local d="$M/$name" port; port=$(next_port)
+  mkdir -p "$d"
+  # Overlay, not a copy: the base stays read-only and shared by every machine.
+  # Never size an overlay below its backing file: qemu-img allows it and the result
+  # is a truncated disk whose GPT backup header is gone ("PARTUUID does not exist",
+  # initramfs shell). Clamp up to the base's virtual size.
+  local base_g
+  base_g=$(qemu-img info --output=json "$BASE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["virtual-size"]//(1024**3))')
+  [ "$disk" -lt "$base_g" ] && disk=$base_g
+  qemu-img create -q -f qcow2 -F qcow2 -b "$BASE" "$d/disk.qcow2" "${disk}G" || die "overlay failed"
+  # A distinct instance-id per machine is what makes cloud-init re-run for a clone.
+  printf 'instance-id: %s-%s\nlocal-hostname: %s\n' "$name" "$(date +%s)" "$name" > "$d/meta-data"
+  { echo "#cloud-config"
+    echo "users:"
+    echo "  - name: alex"
+    echo "    sudo: 'ALL=(ALL) NOPASSWD:ALL'"
+    echo "    shell: /bin/bash"
+    echo "    groups: [sudo]"
+    echo "    ssh_authorized_keys:"
+    # One list item per key: a multi-line command substitution here would put the
+    # second key at column 0 and silently invalidate the YAML.
+    while read -r k; do [ -n "$k" ] && echo "      - $k"; done < "$H/authorized_key"
+    echo "ssh_pwauth: false"
+    # Grow the root fs into the overlay's larger virtual size on first boot.
+    echo "growpart: {mode: auto, devices: ['/']}"
+    echo "resize_rootfs: true"
+  } > "$d/user-data"
+  xorriso -as mkisofs -quiet -output "$d/seed.iso" -volid CIDATA -joliet -rock \
+    "$d/user-data" "$d/meta-data" || die "seed iso failed"
+  printf 'NAME=%s\nPORT=%s\nCPUS=%s\nMEM=%s\n' "$name" "$port" "$cpus" "$mem" > "$d/vm.conf"
+  echo "created $name  ssh port $port  ${cpus} vcpu  ${mem}G ram  ${disk}G disk (thin)"
+  echo "  start it:  vmctl start $name"
+}
+
+cmd_start() {
+  local name=${1:-}; [ -n "$name" ] || die "usage: vmctl start <name>"
+  [ -d "$M/$name" ] || die "no such machine: $name"
+  running "$name" && { echo "$name already running (port $(sed -n 's/^PORT=//p' "$M/$name/vm.conf"))"; return; }
+  conf "$name"; local d="$M/$name"
+  rm -f "$d/qmp.sock"
+  qemu-system-x86_64 \
+    -machine q35,accel=kvm -cpu host \
+    -smp "$CPUS" -m "${MEM}G" \
+    -drive if=virtio,file="$d/disk.qcow2",format=qcow2 \
+    -drive if=virtio,file="$d/seed.iso",format=raw,readonly=on \
+    -netdev user,id=n0,hostfwd=tcp:127.0.0.1:"$PORT"-:22 \
+    -device virtio-net-pci,netdev=n0 \
+    -display none -serial file:"$d/console.log" \
+    -qmp unix:"$d/qmp.sock",server=on,wait=off \
+    -pidfile "$d/qemu.pid" -daemonize || die "qemu failed to start (see $d/console.log)"
+  echo -n "starting $name (port $PORT) "
+  for _ in $(seq 1 90); do
+    ssh -q -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o ConnectTimeout=2 -p "$PORT" alex@127.0.0.1 true 2>/dev/null && { echo "ready"; return; }
+    echo -n .; sleep 2
+  done
+  echo; die "$name did not come up; tail $d/console.log"
+}
+
+cmd_stop() {
+  local name=${1:-}; [ -n "$name" ] || die "usage: vmctl stop <name>"
+  running "$name" || { echo "$name not running"; return; }
+  local d="$M/$name" pid; pid=$(cat "$d/qemu.pid")
+  # ACPI powerdown via QMP, so the guest fs is flushed; SIGKILL only as a fallback.
+  python3 - "$d/qmp.sock" <<'PY' 2>/dev/null
+import json,socket,sys
+s=socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); s.recv(4096)
+for c in ({"execute":"qmp_capabilities"},{"execute":"system_powerdown"}):
+    s.sendall((json.dumps(c)+"\r\n").encode()); s.recv(4096)
+PY
+  for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || { echo "stopped $name"; return; }; sleep 1; done
+  kill -9 "$pid" 2>/dev/null; echo "stopped $name (forced)"
+}
+
+cmd_stop_all() { for n in $(ls "$M" 2>/dev/null); do running "$n" && cmd_stop "$n"; done; echo "all stopped"; }
+
+cmd_ssh() {
+  local name=${1:-}; [ -n "$name" ] || die "usage: vmctl ssh <name> [cmd...]"
+  running "$name" || die "$name is not running (vmctl start $name)"
+  conf "$name"; shift
+  exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+       -p "$PORT" alex@127.0.0.1 "$@"
+}
+
+cmd_list() {
+  printf '%-16s %-8s %-6s %-5s %s\n' NAME STATE PORT CPUS MEM
+  for n in $(ls "$M" 2>/dev/null); do
+    conf "$n"
+    printf '%-16s %-8s %-6s %-5s %sG\n' "$n" "$(running "$n" && echo running || echo stopped)" "$PORT" "$CPUS" "$MEM"
+  done
+}
+
+cmd_destroy() {
+  local name=${1:-}; [ -n "$name" ] || die "usage: vmctl destroy <name>"
+  running "$name" && cmd_stop "$name"
+  rm -rf "$M/$name"; echo "destroyed $name"
+}
+
+cmd_golden() {
+  local name=${1:-} label=${2:-}
+  [ -n "$name" ] || die "usage: vmctl golden <name> [label]   # promote a provisioned VM to the base"
+  [ -d "$M/$name" ] || die "no such machine: $name"
+  running "$name" && die "$name is running; vmctl stop $name first (a live disk cannot be flattened)"
+  label=${label:-$(date +%Y%m%d)}
+  local out="base-provisioned-$label.qcow2"
+  [ -f "$H/$out" ] && die "$H/$out already exists; pass a different label"
+  echo "flattening $name into $out (this reads the whole chain, ~a minute) ..."
+  # convert collapses overlay+base into one standalone image, so machines cloned
+  # from it need nothing else on disk.
+  qemu-img convert -O qcow2 "$M/$name/disk.qcow2" "$H/$out" || die "convert failed"
+  echo "$out" > "$H/CURRENT_BASE"
+  echo "promoted: new machines now clone $out ($(du -h "$H/$out" | cut -f1))"
+  echo "  older bases are kept — existing machines still point at theirs. vmctl bases"
+}
+
+cmd_bases() {
+  echo "current: $(cat "$H/CURRENT_BASE")"
+  for b in "$H"/base-*.qcow2; do
+    [ -f "$b" ] || continue
+    printf '  %-44s %s\n' "$(basename "$b")" "$(du -h "$b" | cut -f1)"
+  done
+}
+
+case ${1:-} in
+  create) shift; cmd_create "$@";;
+  golden) shift; cmd_golden "$@";;
+  bases) cmd_bases;;
+  start) shift; cmd_start "$@";;
+  stop) shift; cmd_stop "$@";;
+  stop-all) cmd_stop_all;;
+  ssh) shift; cmd_ssh "$@";;
+  list|ls) cmd_list;;
+  destroy|rm) shift; cmd_destroy "$@";;
+  *) cat <<USAGE
+vmctl — thin per-worktree x86_64 VMs (nothing runs unless started)
+
+  vmctl create <name> [--cpus N] [--mem G] [--disk G]   thin overlay on the shared base
+  vmctl start|stop <name>                               stop = ACPI powerdown
+  vmctl stop-all                                        clear the box for gaming
+  vmctl ssh <name> [cmd...]
+  vmctl list
+  vmctl destroy <name>
+  vmctl golden <name> [label]                           promote a provisioned VM to the base
+  vmctl bases                                           list base images
+
+defaults: ${DEF_CPUS} vcpu, ${DEF_MEM}G ram, ${DEF_DISK}G thin disk, ssh from ${PORT_BASE}
+USAGE
+    ;;
+esac
