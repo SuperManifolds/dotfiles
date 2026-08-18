@@ -114,7 +114,20 @@ PY
   kill -9 "$pid" 2>/dev/null; echo "stopped $name (forced)"
 }
 
-cmd_stop_all() { for n in $(ls "$M" 2>/dev/null); do running "$n" && cmd_stop "$n"; done; echo "all stopped"; }
+cmd_stop_all() {
+  # Deliberately gated. This is the "clear the box before gaming" command, and on a
+  # box running several worktrees it will stop machines other sessions are using —
+  # which is why an agent should stop its OWN machine by name instead.
+  local yes=${1:-} live=()
+  for n in $(ls "$M" 2>/dev/null); do running "$n" && live+=("$n"); done
+  [ ${#live[@]} -eq 0 ] && { echo "nothing running"; return; }
+  if [ ${#live[@]} -gt 1 ] && [ "$yes" != "--yes" ]; then
+    echo "would stop ${#live[@]} machines: ${live[*]}"
+    die "more than one is running and they may belong to other worktrees; re-run with --yes, or stop yours by name"
+  fi
+  for n in "${live[@]}"; do cmd_stop "$n"; done
+  echo "all stopped"
+}
 
 cmd_ssh() {
   local name=${1:-}; [ -n "$name" ] || die "usage: vmctl ssh <name> [cmd...]"
@@ -127,13 +140,26 @@ cmd_ssh() {
 cmd_list() {
   printf '%-16s %-8s %-6s %-5s %s\n' NAME STATE PORT CPUS MEM
   for n in $(ls "$M" 2>/dev/null); do
+    # A machine missing vm.conf is half-deleted; report it rather than aborting the
+    # whole listing on an unset variable.
+    if [ ! -f "$M/$n/vm.conf" ]; then
+      printf '%-16s %-8s %-6s %-5s %s\n' "$n" "BROKEN" "-" "-" "no vm.conf — vmctl destroy $n"
+      continue
+    fi
     conf "$n"
     printf '%-16s %-8s %-6s %-5s %sG\n' "$n" "$(running "$n" && echo running || echo stopped)" "$PORT" "$CPUS" "$MEM"
   done
 }
 
 cmd_destroy() {
-  local name=${1:-}; [ -n "$name" ] || die "usage: vmctl destroy <name>"
+  local name=${1:-} force=${2:-}
+  [ -n "$name" ] || die "usage: vmctl destroy <name> [--force]"
+  # Refuse a running machine: with several worktrees on one box, a destroy is very
+  # likely aimed at someone else's work. Deleting it mid-run costs them the run and
+  # leaves a half-deleted directory behind.
+  if running "$name" && [ "$force" != "--force" ]; then
+    die "$name is RUNNING — another worktree may be using it. vmctl stop $name first, or pass --force"
+  fi
   running "$name" && cmd_stop "$name"
   rm -rf "$M/$name"; echo "destroyed $name"
 }
@@ -169,16 +195,17 @@ case ${1:-} in
   bases) cmd_bases;;
   start) shift; cmd_start "$@";;
   stop) shift; cmd_stop "$@";;
-  stop-all) cmd_stop_all;;
+  stop-all) shift; cmd_stop_all "${1:-}";;
   ssh) shift; cmd_ssh "$@";;
   list|ls) cmd_list;;
-  destroy|rm) shift; cmd_destroy "$@";;
+  destroy|rm) shift; cmd_destroy "${1:-}" "${2:-}";;
   *) cat <<USAGE
 vmctl — thin per-worktree x86_64 VMs (nothing runs unless started)
 
   vmctl create <name> [--cpus N] [--mem G] [--disk G]   thin overlay on the shared base
   vmctl start|stop <name>                               stop = ACPI powerdown
-  vmctl stop-all                                        clear the box for gaming
+  vmctl stop-all [--yes]                                clear the box for gaming
+                                                        (gated: may hit other worktrees)
   vmctl ssh <name> [cmd...]
   vmctl list
   vmctl destroy <name>

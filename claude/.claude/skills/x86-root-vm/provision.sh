@@ -17,7 +17,11 @@ sudo apt-get update -qq
 sudo apt-get install -y -qq --no-install-recommends \
   ca-certificates curl git jq xz-utils file procps \
   iproute2 iptables uidmap dbus-user-session \
-  build-essential pkg-config >/dev/null
+  build-essential pkg-config \
+  redis-tools >/dev/null
+# redis-tools is not optional: the valkey workload's prerequisite check runs when the
+# TestRuncCR table is built, so a missing redis-cli skips the ENTIRE runc suite even
+# when filtered to another workload.
 
 # Debian 13 splits docker: docker.io is the daemon, docker-cli the client. Installing
 # only the former leaves you with no `docker` binary and a confusing "command not found".

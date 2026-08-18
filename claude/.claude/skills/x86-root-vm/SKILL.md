@@ -24,7 +24,7 @@ Anything gVisor-related has to run on x86_64.
 - **Never pollute the host with dev toolchains.** No Go, no compilers, no 700-package
   installs. Installing a *VM package* is fine; everything else lives inside a VM.
 - **Nothing may run when Alex is not working.** No autostart, no systemd unit, no
-  linger. `vmctl stop-all` before you walk away.
+  linger. Stop your machine by name when done (see Leaving the box).
 - Historically this box was no-sudo (`~/gvisor-testenv`, see the memory note). That
   rule is now scoped to toolchains: sudo for VM management is expected.
 
@@ -40,7 +40,8 @@ compound command.
 
     vmctl create <name> [--cpus N] [--mem G] [--disk G]   thin overlay on the golden base
     vmctl start|stop <name>                               stop = ACPI powerdown via QMP
-    vmctl stop-all                                        clear the box for gaming
+    vmctl stop-all [--yes]                                human's pre-gaming sweep, NOT
+                                                          an agent tidy-up — see Leaving the box
     vmctl ssh <name> [cmd...]
     vmctl list
     vmctl destroy <name>
@@ -142,9 +143,23 @@ Each of these cost real time once.
 
 ## Leaving the box
 
-Always finish with:
+**Stop the machine you started, by name:**
 
-    vmctl stop-all
+    vmctl stop wt-<yourworktree>
 
-and confirm `pgrep -c qemu-system-x86_64` is 0. VMs are cheap to restart; a forgotten
-one stealing 6 cores mid-game is not.
+**Do not use `stop-all` to tidy up.** Several worktrees share this box, and `stop-all`
+stops *theirs* too — that has already cost another session a test run mid-flight. It is
+gated now (it refuses when more than one machine is running unless passed `--yes`), but
+the habit is the fix: stop yours by name. `stop-all --yes` is the human's
+"clear-the-box-before-gaming" command, not an agent's cleanup step.
+
+Likewise `vmctl destroy` refuses a running machine without `--force`, for the same
+reason: on a shared box a destroy is very often aimed at someone else's work.
+
+Before finishing, check you left nothing of *yours* running:
+
+    vmctl list
+
+A VM is cheap to restart, so erring toward stopping your own is right — but note the
+guest's `/tmp` does not survive a restart, so stage fixtures somewhere under `~` if a
+restart would cost you setup.
