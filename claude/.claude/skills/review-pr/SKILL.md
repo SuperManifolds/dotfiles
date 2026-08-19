@@ -56,10 +56,19 @@ Time-box this step to ~3 minutes. If a test suite is too slow, run only the test
 
 ## Step 4: Fan out specialized review passes
 
-Spawn the following subagents **in parallel** (single message, multiple Agent tool calls). Use `subagent_type: Explore`.
+Spawn the following subagents **in parallel** (single message, multiple Agent tool calls). Use `subagent_type: code-reviewer`.
+
+It is the only type that satisfies both constraints at once: read-only toward the repo by charter (it recommends fixes and never applies them), while still holding Write, so its findings land in `<dir>` instead of in the orchestrator's context. It is also built for reviewing a changeset rather than for search.
+
+**Not `Explore`**, even though read-only is what you want: it has no Write, and Bash redirects and heredocs are blocked inside it too, so there is no route by which it can produce the artifact. Every pass then silently fails its output instruction and returns its findings as a final message — defeating the run directory, uniformly, across all passes at once. Explore also reads excerpts rather than whole files and describes itself as locating code rather than reviewing or auditing it.
+
+**Not `general-purpose`**: it can write the artifact, but it can also edit the repo, and a review pass has no business holding that.
+
+Restate the boundary in every pass prompt anyway, since the charter is a prompt and not a sandbox: the only file the agent may write is `<dir>/<pass-name>.md`, and it must not modify anything in the repo. Tell it not to run the test suite either, Step 3 already did that and its results are in `<dir>/signals.md`.
 
 Each subagent prompt must include:
 - Pointers to `<dir>/diff.patch`, `<dir>/intent.md`, `<dir>/conventions.md`, `<dir>/signals.md`
+- The read-only boundary: write `<dir>/<pass-name>.md` and nothing else, modify no repo file, don't re-run the test suite
 - Instruction to read full changed files (not just diff hunks) and chase callers/types/config when context is needed
 - The specialized charter below
 - Output instruction: write findings to `<dir>/<pass-name>.md`, one finding per line in the format `path:line — kind — severity — confidence — description — suggestion`.
@@ -68,9 +77,13 @@ Each subagent prompt must include:
     - `design` — the code does what the author intended, the choice is internally consistent, but the reviewer would have made a different one. Only raise where there's a concrete trade-off worth discussing — not matters of taste or naming preference. If `<dir>/conventions.md` documents the choice, divergence is `style` or `issue`, not `design`.
     - `style` — code style and idiom: naming, formatting, ordering, language idioms, comment/doc style, magic numbers, function length. Code works correctly and the author didn't make a meaningful design choice — it's just *how* the code is written. Prefer concrete references to the convention being violated (e.g. "CONTRIBUTING.md says snake_case for modules"). Don't flag style on lines the diff didn't touch.
     - When unsure between `issue` and `design`, prefer `issue`. When unsure between `design` and `style`, prefer `style`.
+    - **Before filing anything as `issue`, check whether the author documented that exact choice.** A comment explaining the trade-off, an error message telling a human to clean up by hand, a header paragraph stating a limitation: all mean the author decided this on purpose, and it is `design` at most. Quote the line that shows they knew. This is the largest single source of noise in the merged set, because a deliberate choice reads identically to an oversight unless you go looking for the comment.
   - **confidence** is `confident` (directly visible in the code being read) or `verify` (plausible but depends on assumptions about code/runtime not directly read). Default to `verify` when unsure — over-claiming confidence is the bigger failure mode. Style findings are almost always `confident`.
   - No prose, no recap, no preamble.
+  - If the agent cannot write the file for any reason, it must say so explicitly and return the finding lines verbatim as its final message, nothing else. A silent failure to write looks identical to a pass that found nothing.
 - Cap at ~15 findings per pass, with at most ~3 `design` and ~5 `style` of those
+
+**Check the artifacts landed before moving on.** `ls <dir>/*.md` and confirm one file per pass. A pass whose file is missing has not run, however confident its final message sounded; write its returned lines to the file yourself before merging, and note in the final output that the pass reported through the transcript rather than to disk.
 
 **Passes:**
 
@@ -93,16 +106,22 @@ Read all `<dir>/*.md` files. Then:
    - **High**: memory safety, security holes, data loss, breaking changes, silent failures in critical paths.
    - **Medium**: logic errors, leaks, contract violations, missing validation at boundaries, test gaps for new behavior.
    - **Low**: perf concerns, dead code, misleading names, non-obvious invariants without comments.
+
+   **Severity is blast radius, not confidence.** How well a finding is evidenced changes how it is *written*, never how severe it is. A perfectly-reproduced defect sitting behind a blocker that already stops the code reaching it is Low, however clean the measurement. When a strong repro tempts you to promote something, that is the tell you are grading evidence instead of impact. Rank on what goes wrong and how often, then attach the evidence.
 3. **Drop noise**: pure style nits unless they cause bugs. Also apply a **blast-radius filter** before keeping any finding at Medium or higher: in the realistic worst case for this codebase, does harm actually accumulate? A 1KB temp file in `/tmp/` that systemd-tmpfiles wipes, a leak on a path that's hit once per process lifetime, a race that the use case forecloses — all are technically real but practically zero. Drop them, or downgrade to Low if there's still a maintainability angle. The test: if you can't articulate concrete harm — "this fills the disk over N hours", "this corrupts user data on retry", "this fires on every request" — the severity is wrong.
 
    Also drop findings that name pre-existing code the diff didn't touch (see Step 4's `issue` scope rule). If a pass surfaced one, it leaked through; move it to coverage notes or omit.
+
+   **Drop deliberate choices, however real.** If the author documented the behaviour (a comment stating the trade-off, an error message telling a human to intervene, a header paragraph naming the limitation), it is not an issue no matter how confidently a pass phrased it. Re-file as `design`, or drop. The passes are told to check this in Step 4; expect several to have missed it anyway, because a deliberate choice and an oversight look the same in a diff.
+
+   Expect this step to remove most of what arrived. Roughly a third surviving to the presented set is healthy, and a merged list that keeps nearly everything means the filter did not run.
 4. **Split by kind**: write `issue`-kind findings to `<dir>/issues.md`, `design`-kind to `<dir>/design.md`, and `style`-kind to `<dir>/style.md`. Issues drive verification, reproduction, and the main presentation. Design and style are separate output — neither is reproduced or verified. For design points, drop any item only one pass raised at low severity — almost always taste, not signal. For style, dedupe aggressively (the formatter pass and the dedicated style pass will overlap), and group near-duplicates into one entry where possible (e.g. "use snake_case for module names" with multiple file references rather than one entry per file).
 5. **Intent check**: explicitly compare `<dir>/intent.md` against the diff. Does the diff actually do what the description claims? Are there changes in the diff *not* mentioned in the intent? Both directions matter — undisclosed scope creep is an `issue`.
 6. **Verification checklist for High issues**: for each remaining High-severity issue (not design point), write a concrete verification step — the specific command, test case, manual check, or file/line to inspect that would confirm the issue is real. One per issue. These checks seed Step 6's reproduction for the High issues, and back the Step 7 checklist for any that Step 6 can't settle. Save to `<dir>/verify.md`.
 
 ## Step 6: Attempt to reproduce findings
 
-For **every** `issue`-kind finding — all severities, not just High/Medium — try to actually produce evidence to confirm or refute it in practice before presenting. Design and style findings are not reproduced (they're trade-offs and presentation, not falsifiable claims). Spawn a single `subagent_type: general-purpose` agent for this step (it needs Bash to run scripts; Explore can't write reproduction files).
+For **every** `issue`-kind finding — all severities, not just High/Medium — try to actually produce evidence to confirm or refute it in practice before presenting. Design and style findings are not reproduced (they're trade-offs and presentation, not falsifiable claims). Spawn a single `subagent_type: general-purpose` agent for this step. Unlike the Step 4 passes it genuinely may need to touch the repo (a failing test, temporary instrumentation), which is why it gets the broader type and the explicit boundaries below.
 
 The subagent prompt must include:
 - Pointer to `<dir>/issues.md` (every issue-kind finding — attempt all of them) and `<dir>/verify.md` (the concrete pre-written checks for the High ones)
@@ -120,13 +139,23 @@ The subagent prompt must include:
   - **No network side effects.** Tests and linters that hit the network as part of their normal operation are fine; explicit `curl`/`gh`/API calls to mutate external systems are not.
   - **No destructive shell commands** outside `/tmp/` (`rm -rf`, etc.).
 - Record any repo-side artifacts created (and confirm cleanup) in the evidence column of `<dir>/reproduced.md`, e.g. `wrote tests/foo_repro_test.py, ran pytest, deleted file`.
-- Time-box: ~3 minutes per finding. Attempt every issue; work highest-severity first so that if you run long, only the lowest-severity findings are left unattempted. Spend the time — running a real test or writing a real repro script is the whole point of this step. Skip findings that would require infrastructure not present locally (prod-only configs, external services, real concurrency at scale) and mark them `inconclusive`.
+- Time-box: ~3 minutes per finding. Attempt every issue; work highest-severity first so that if you run long, only the lowest-severity findings are left unattempted. Spend the time — running a real test or writing a real repro script is the whole point of this step.
+- **`inconclusive` is a verdict you have to earn.** Before marking anything unreproducible, name the specific missing capability out loud and run the command that proves it is missing. The failure mode is reasoning from a true general fact to an untested specific one, and it is how a skill misses its own headline finding:
+  - *The system under test can't run here* is not *this claim can't be tested here*. A change to a gVisor cycle on an arm64 box still contains arch-independent code whose semantics are testable in isolation. Pull the specific helper the finding is about and drive it directly.
+  - *This needs the full pipeline* is usually false. Most findings reduce to one function, one parse, one ordering.
+  - Prefer driving the branch's **own** helpers over reimplementing them, so a passing check says something about the code under review rather than about your copy of it.
+  - Genuinely out of reach: prod-only configs, external services you cannot stand up, real concurrency at scale. Those are `inconclusive`, and say which one applies.
+- **Check the framing, not just the claim.** A finding can be confirmed in every stated particular and still be wrong about what it means, usually because the pass missed a guard elsewhere that already handles the case. For each `confirmed`, read the surrounding path once more and ask what the author's code does about it. If the answer is "handles it two functions away", the correct verdict is `refuted`.
 - Output: write `<dir>/reproduced.md` with one entry per finding: `path:line — [confirmed|refuted|inconclusive] — evidence (command run, test name, grep result, or reasoning)`.
 
 After the subagent returns, read `<dir>/reproduced.md` and update the merged findings:
-- **confirmed** findings: drop any `(verify)` tag, promote to `confident`.
+- **confirmed** findings: drop any `(verify)` tag, promote to `confident`. Confirming does not promote severity (Step 5).
 - **refuted** findings: remove from the report entirely.
 - **inconclusive** findings: keep, retain `(verify)` tag, note why reproduction wasn't feasible.
+
+**Then look for another machine.** For anything still `inconclusive`, check the available skills and hosts for an environment that could settle it: a VM, another architecture, a cluster, a container. A finding confirmed in the configuration the change actually targets is worth more than the rest of the report combined, and the environment usually exists. Take the highest-severity inconclusive one there rather than all of them.
+
+Do not report a finding as unverifiable while an environment that could verify it sits unused.
 
 ## Step 7: Present the review
 
@@ -149,3 +178,7 @@ Do NOT:
 - Suggest refactors unrelated to the changes.
 - Recommend adding docs/comments to unchanged code.
 - Flag style preferences unless they cause bugs.
+- Mark anything `inconclusive` without having run the check that proves it is out of reach, or report a finding as unverifiable while an environment that could verify it sits unused.
+- File a deliberate, documented choice as an `issue`.
+- Let a strong reproduction raise a finding's severity.
+- Trust that a pass ran because its final message sounded confident. Confirm its file exists.
