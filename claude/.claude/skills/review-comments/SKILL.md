@@ -53,19 +53,35 @@ Two things stay unconditional regardless:
 Also load the numbered principles if the document has them. The ones that change the output:
 verify rather than read, read the system not just the diff, AI surfaces candidates and a human
 decides, label every comment, keep the count down, unblock now and capture the rest as tracker
-issues, name the author and praise something concrete.
+issues, name the author.
+
+One place the policy and the practice diverge: policy documents tend to ask for *concrete* praise,
+and reviewers in practice write a bare `Looks great @person.` and move on. Follow the corpus for
+voice (Step 1) and the policy for everything else.
 
 ## Step 1: Calibrate the voice against the real corpus
 
 Do this every time. Do not trust a cached description of anyone's style, including the one below.
 
+**Fetch both corpora, they are different voices.** The inline endpoint returns only inline comments,
+which by design carry no praise and no opener, so calibrating a review *body* against it means
+calibrating against nothing and filling the gap by invention. That is the single most-rejected thing
+this skill produces.
+
 ```
+# inline comments
 gh api "/repos/$REPO/pulls/comments?per_page=100&sort=created&direction=desc" \
   --jq ".[] | select(.user.login==\"$ME\") | .body"
+
+# review bodies, which live on a different endpoint and must be walked per PR
+for n in $(gh pr list --state all --limit 40 --json number --jq '.[].number'); do
+  gh api "/repos/$REPO/pulls/$n/reviews" \
+    --jq ".[] | select(.user.login==\"$ME\") | select(.body != \"\") | .body"
+done
 ```
 
-Read 15-20 of them and match what you see. The pattern to expect, as a starting point to confirm or
-correct against the fetch:
+Read 15-20 inline comments and every body you get back, and match what you see. The pattern to expect,
+as a starting point to confirm or correct against the fetch:
 
 - Label, then straight into the finding. **No praise sentence in inline comments at all.**
 - First person, own testing, stated flatly. The shape is a claim then the measurement that settles
@@ -78,8 +94,18 @@ correct against the fetch:
 - Length tracks evidence volume, not a target. Simple notes run ~120 chars; a comment carrying a
   real measurement runs 350-450 and that is correct. Treat the short end as a floor, never a cap.
 
+Body openers are their own pattern and are **barer than any description of them suggests**: a two or
+three word verdict plus the name, then straight into what was run. `Looks great @person.` /
+`Works as described @person, nice work.` No clause explaining *why* the change is good, no naming of
+the clever part. Confirm the exact shape against the bodies you fetched above rather than reusing
+these examples.
+
 Forbidden, all of these have been rejected in review:
 - Em dashes. Use a comma or a full stop.
+- **Explaining why the change is good.** `X is the right call`, `Y is a genuinely non-obvious thing
+  to have found`, `nice approach to Z`. Rejected repeatedly. The verdict word is the whole praise.
+  Note this diverges from repo policy documents, which often say to "praise concretely": the
+  corpus wins for voice, the policy wins for everything else.
 - Superlative-plus-rationale scaffolding (`the best part of this PR is X, which is the right
   instinct`), performative hedges (`the call I'd want someone to make`), triads.
 - Headers, bullets or tables **inside** an inline comment. Prose only.
@@ -99,6 +125,23 @@ capture exact commands and results. Note explicitly what you did **not** run.
 For any finding you intend to post, prefer a reproduction over a code-reading argument. A
 two-command repro moves a comment from arguable to settled, and it is what good comments look like.
 If a finding cannot be reproduced locally, say so in the comment or drop it.
+
+**"Cannot be verified" is a claim that needs checking, not a judgement you are entitled to make.**
+Before writing that anything is unverifiable, unreproducible or impossible, name the specific missing
+capability out loud and run the command that confirms it is missing. The failure mode is reasoning
+from a true general fact to an untested specific one:
+
+- *The system under test cannot run here* is not the same as *this claim cannot be tested here.*
+  A change to a gVisor cycle on an arm64 box still contains arch-independent Go whose semantics are
+  testable in isolation, and testing that one helper settled the review's headline finding.
+- *This file's lines are unsuitable* is not the same as *no line here is suitable.* Check the actual
+  candidates before declining.
+
+**Then look for another machine.** Before declaring anything unverifiable, check the available skills
+and hosts for an environment that can run it: a VM, another architecture, a cluster, a container.
+A review backed by running the change in the configuration it targets is worth more than any amount
+of reading, and the environment usually exists. Prefer driving the branch's own helpers there over
+reimplementing them, so a passing probe says something about the code under review.
 
 Do not post a finding that contradicts a comment the author wrote deliberately. Before calling
 something a defect, check whether the author documented that exact choice. If they did, it is a
@@ -131,6 +174,12 @@ quotas:
 - **At most 4 nits.** Small, take or leave. Label `nit:`.
 - **Everything else → the issue tracker** (Step 7), not a PR comment.
 
+**Severity is blast radius, not confidence.** Nailing a finding with a hard measurement makes the
+comment better, it does not make the finding more severe. A perfectly-reproduced defect on a
+non-gating path, behind a blocker that already stops the code from getting there, is a flag. Ask what
+concretely goes wrong and how often, never how sure you are. If a stronger repro tempts you to
+promote something, that is the tell you are grading evidence instead of impact.
+
 A verification body with no inline comments at all is a complete, good review, and it is the common
 outcome for a small, well-tested change. If all you have is wording preferences in a doc that is
 already accurate enough to use, post the body and stop. Never pad toward the numbers above: working
@@ -145,24 +194,66 @@ worst case has no concrete harm.
 Fold near-duplicates into one comment with several line references rather than one comment each.
 
 Then ask, per survivor: is this faster to fix than to describe? Doc-only wording and one-line changes
-usually are, and the repo's policy may well prefer the fix (pushing commits to the branch) over the
-comment. Apply it locally, show `git diff`, and never commit or push without an explicit instruction.
-On someone else's branch, say whose branch it is before proposing a push.
+usually are, and the repo's policy may well prefer the fix over the comment. Three ways to hand one
+over, cheapest first: a **suggested edit** inside the comment (Step 4), a local patch you show as
+`git diff`, or **pushing commits** to the branch. Never commit or push without an explicit
+instruction, and on someone else's branch say whose branch it is before proposing a push.
 
 ## Step 4: Draft
 
 **Body.** Longer than an inline comment is fine. Structure that has worked:
 
-1. One short clause of concrete praise, naming the author. Inline comments carry no praise, so this
-   is the only place it goes. Keep it to a clause and make it trivially deletable, since reviewers
-   often trim it to something plainer or cut it outright.
-2. The blocker in two or three sentences, with the repro, ending `Details inline.`
-3. What you verified, as a flat list of commands and results, plus what you did not run.
-4. Anything worth knowing that is not a comment (e.g. a test cell that gives some path no
-   coverage), and where it is going instead.
+1. The bare opener: verdict word plus the author's name, then the headline of what you ran and the
+   comment counts. `Looks great @person. Pulled the branch and ran X, no blockers, three flags and
+   four nits.` No clause explaining why the change is good (Step 1).
+2. A **pointer** to the finding that most deserves attention, not a retelling of it:
+   `Of the flags, the X one is what I'd most want a second look at.` Restate a finding in full only
+   when it is a blocker worth leading with, and then end it `Details inline.`
+3. What you verified, as a flat list of commands and results under a `Verified on <sha>, <arch>:`
+   heading, plus what you did not run and why.
+4. Anything worth knowing that has **no** inline comment attached: a claim of the author's you
+   independently confirmed, evidence that belongs nowhere else, a coverage gap going elsewhere.
+
+**Do not say anything twice.** Whatever an inline comment carries in full does not get a second
+telling in the body, and the body's job is the material with no comment attached. Before finalising,
+read the body against every comment and delete the overlap. Measurements, repro steps and file
+references are the usual duplicates.
+
+**Never reference tracker items that do not exist.** A body sentence like "four of these are going to
+Linear" is a promise, and if nothing is filed it evaporates the moment the PR merges. Either file
+them first and cite real IDs, or say nothing (see Step 7 for whether they should be filed at all).
 
 **Inline comments.** One per finding: `<label>: <observation>, <evidence>, <fix folded in>`. Lead
 with the observation, no preamble, no narration of how you verified beyond the evidence itself.
+
+**Suggested edits.** When the fix is a small, exact edit, hand it over as a diff the author can click
+rather than a sentence they have to translate. Fold the reasoning into the prose above it and put the
+block last:
+
+````
+```suggestion
+<the replacement lines, in full>
+```
+````
+
+The mechanics that decide whether one is possible at all:
+
+- The anchored line(s) must be **inside a diff hunk**, context lines included. Blank lines in a hunk
+  are valid anchors and are how you insert without replacing.
+- A suggestion **replaces exactly the lines it is anchored to**, so every preserved line has to be
+  reproduced byte for byte. Anchor a multi-line block with `start_line` + `start_side` alongside
+  `line` + `side`.
+- Refuse the ones where reproduction is the risk, and say why in the comment. A markdown file that
+  wraps per paragraph puts a 2000-character paragraph on one line, and restating it to change one
+  clause risks silently corrupting everything you did not mean to touch. Prose beats a huge diff.
+- Refuse when the correct location is not in the diff at all. Inserting the right text in the wrong
+  place is worse than a comment naming the right place.
+- The suggestion must compile or render on its own. Check that identifiers it introduces exist and
+  that imports it needs are already there.
+
+**Verify every suggestion against the source before it goes near the API**: pull the block back out
+of the built payload and diff its preserved lines against the file on disk. A one-character drift
+here silently rewrites the author's code and reads as if they made the mistake.
 
 ## Step 5: Human review gate
 
@@ -208,10 +299,11 @@ rejects the whole review:
 gh api "/repos/$REPO/pulls/<n>/files" --jq '.[] | "\(.filename)\n\(.patch)"'
 ```
 
-Parse the `@@ -old +new,len @@` headers for new-side ranges and check each target line. For a
-finding on an unchanged line, anchor to the nearest changed line in a related file and cite the real
-`path:line` in the comment text. (Worked example: a finding in a task script the diff never touched,
-anchored onto the workflow line that exports the env var it concerns.)
+Parse the `@@ -old +new,len @@` headers for new-side ranges and check each target line. The range
+covers **context lines too**, not just added ones, so unchanged and blank lines inside a hunk are
+valid anchors. For a finding outside every hunk, anchor to the nearest changed line in a related file
+and cite the real `path:line` in the comment text. (Worked example: a finding in a task script the
+diff never touched, anchored onto the workflow line that exports the env var it concerns.)
 
 Build the payload with a script, not by hand, so escaping is right:
 
@@ -220,9 +312,12 @@ commit_id: <gh api "/repos/$REPO/pulls/<n>" --jq .head.sha>
 event:     "COMMENT"          # "APPROVE" only on an explicit instruction (Step 0)
 body:      <the body>
 comments:  [{path, line, side: "RIGHT", body}, ...]
+           # multi-line (a suggestion spanning lines): add start_line and start_side
 ```
 
-Write it to the scratchpad, validate with `python3 -c "import json;json.load(open(...))"`, then:
+Write it to the scratchpad, validate with `python3 -c "import json;json.load(open(...))"`, and for
+any comment carrying a `suggestion` block, re-extract that block from the payload and diff its
+preserved lines against the file on disk before posting. Then:
 
 ```
 gh api --method POST "/repos/$REPO/pulls/<n>/reviews" --input review.json
@@ -250,7 +345,23 @@ Report the review URL, then:
   common case; request changes only for dangerous, incomplete or broken work, since it forces another
   cycle.
 - **Tracker follow-ups.** Written up and ready to file, deliberately kept out of the payload, since
-  a follow-up needs a real home and a comment on a merged PR is not one. Offer to create them.
+  a follow-up needs a real home and a comment on a merged PR is not one. Offer to create them, and
+  never create them unprompted: they are issues on someone's board under their name.
+
+  Three tests before proposing any of them, because a pile of tickets off one PR is its own noise
+  and the reviewer will push back on the count:
+
+  1. **Consolidate.** Items fixed in the same function in one sitting are one ticket, not three.
+     Say what the list collapses to before asking.
+  2. **Did the author choose this?** If they documented the behaviour deliberately (a comment
+     explaining the trade-off, an error message telling a human to clean up by hand), do **not**
+     file against it. Ask them in a flag comment instead. Filing turns a review question into
+     unilateral homework and takes the decision away from the person who made it.
+  3. **Is a ticket the right home?** A one-line fix with a suggested edit attached is closed by the
+     author accepting or ignoring it, and needs no ticket. Something confirmed but inconsequential
+     needs neither. Confirmed is not the same as worth tracking.
+
+  What survives all three is usually one ticket, or none.
 
 ## Do not
 
@@ -262,5 +373,10 @@ Report the review URL, then:
 - Write final prose before the inventory has been agreed (Step 5, Phase 1).
 - Put a bare `#N` in front of the reviewer when it could read as either a finding or a line number.
 - Read `$?` through a pipe, or put any number in a draft that only one command ever produced.
+- Write that something cannot be verified, reproduced or suggested without having run the check that
+  proves it. Reasoning from a true general fact to an untested specific one is the failure.
+- Explain why the change is good, in the body or anywhere else. The verdict word is the whole praise.
+- Say the same thing in the body and in a comment.
+- Claim tracker items exist before they are filed, or file any without being asked.
 - Put missing tests, missing docs or scope-creep observations in PR comments instead of the tracker.
 - Reformat or "improve" wording the reviewer supplied.
