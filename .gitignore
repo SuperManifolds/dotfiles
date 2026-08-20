@@ -7,3 +7,4 @@ tmux/.config/tmux/plugins
 # Machine-local by design — irc.conf only ever references ${sec.data.*}.
 weechat/.config/weechat/sec.conf
 .DS_Store
+__pycache__/
