@@ -51,6 +51,11 @@
             "type": "command",
             "command": "$HOME/.claude/hooks/verify-stop.sh",
             "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/tic-scan.sh",
+            "timeout": 15
           }
         ]
       }
@@ -108,5 +113,6 @@
   "autoMemoryEnabled": true,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "tui": "fullscreen"
 }

@@ -1,0 +1,18 @@
+# Phrases the tic-scanner Stop hook bounces (case-insensitive substring match).
+# One phrase per line. Lines starting with # and blank lines are ignored.
+# Keep this list HIGH-SIGNAL: only phrases that are almost always a tic, never
+# legitimate content — otherwise the hook nags on false positives. Edit freely.
+#
+# The scanner only runs when ~/.claude/.focus-mode exists. Toggle it off by
+# removing that flag. It blocks at most once per reply (loop-guarded).
+
+you're absolutely right
+you are absolutely right
+you're absolutely correct
+you are absolutely correct
+you're completely right
+you're totally right
+great question
+great catch
+you're right to
+i apologize for the confusion
