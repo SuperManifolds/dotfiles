@@ -25,29 +25,33 @@
       "Bash(brew:*)",
       "WebFetch(domain:*)",
       "WebSearch",
-      "mcp__pencil"
+      "mcp__pencil",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(./venv/bin/python -)"
     ]
   },
-  "model": "opus[1m]",
-  "outputStyle": "Proactive",
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline.sh",
-    "padding": 0
-  },
+  "model": "opus",
   "hooks": {
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "$HOME/.claude/hooks/format.sh", "timeout": 30 }
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/format.sh",
+            "timeout": 30
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "$HOME/.claude/hooks/verify-stop.sh", "timeout": 180 }
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/verify-stop.sh",
+            "timeout": 180
+          }
         ]
       }
     ],
@@ -55,29 +59,54 @@
       {
         "matcher": "startup|resume|clear|compact",
         "hooks": [
-          { "type": "command", "command": "$HOME/.claude/hooks/session-context.sh", "timeout": 10 },
-          { "type": "command", "command": "$HOME/.claude/hooks/mise-env.sh", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/session-context.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/mise-env.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/focus-mode.sh",
+            "timeout": 10
+          }
         ]
       }
     ],
     "CwdChanged": [
       {
         "hooks": [
-          { "type": "command", "command": "$HOME/.claude/hooks/mise-env.sh", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/mise-env.sh",
+            "timeout": 10
+          }
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0
   },
   "enabledPlugins": {
     "rust-analyzer-lsp@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
     "clangd-lsp@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
-    "context7@claude-plugins-official": true
+    "context7@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true
   },
+  "outputStyle": "Proactive",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
   "autoMemoryEnabled": true,
   "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "agentPushNotifEnabled": true
 }
