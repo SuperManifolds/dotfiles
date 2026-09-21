@@ -50,6 +50,8 @@ brew "pipx"
 brew "uv"
 brew "rustup"
 brew "swiftly"
+# Needed by zls (installed by Mason); both track upstream, so the minors match.
+brew "zig"
 
 # LSP & formatters (used by Claude Code plugins/hooks)
 brew "gopls"

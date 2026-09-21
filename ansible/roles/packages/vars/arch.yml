@@ -51,6 +51,9 @@ pacman_packages:
   - unarchiver
   - xh
   - yt-dlp
+  # Needed by zls (installed by Mason); Arch tracks upstream Zig closely
+  # enough that the minors stay matched.
+  - zig
   - zoxide
 
 aur_packages:

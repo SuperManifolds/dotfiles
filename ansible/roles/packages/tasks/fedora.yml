@@ -156,6 +156,40 @@
     state: present
   become: true
 
+# Zig: dnf lags a minor behind (0.14.x on F42), and zls -- installed by Mason,
+# which tracks upstream -- only supports its exactly matching Zig minor. Install
+# the upstream release that pairs with zls instead; bump zig_version whenever
+# Mason picks up a new zls minor.
+- name: Create Zig install directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/share/zig"
+    state: directory
+    mode: "0755"
+
+- name: Check if Zig is installed
+  ansible.builtin.stat:
+    path: "{{ zig_prefix }}/zig"
+  register: zig_installed
+
+# curl, not get_url: ziglang.org stalls Python's urllib, so get_url times out
+# on the tarball while curl fetches it in seconds.
+- name: Download and unpack Zig
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      curl -fsSL
+      https://ziglang.org/download/{{ zig_version }}/zig-{{ zig_target }}-{{ zig_version }}.tar.xz
+      | tar -xJ -C {{ ansible_env.HOME }}/.local/share/zig
+    executable: /bin/bash
+  when: not zig_installed.stat.exists
+  changed_when: true
+
+- name: Link Zig into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ zig_prefix }}/zig"
+    dest: "{{ ansible_env.HOME }}/.local/bin/zig"
+    state: link
+
 # NPM global packages
 - name: Install global NPM packages
   community.general.npm:

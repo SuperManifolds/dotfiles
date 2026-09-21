@@ -40,6 +40,11 @@ dnf_packages:
   - zoxide
   - unar
 
+# Paired with the zls version Mason installs (see fedora.yml).
+zig_version: "0.16.0"
+zig_target: "{{ ansible_architecture }}-linux"
+zig_prefix: "{{ ansible_env.HOME }}/.local/share/zig/zig-{{ zig_target }}-{{ zig_version }}"
+
 dnf_desktop_packages:
   - imhex
   - geary

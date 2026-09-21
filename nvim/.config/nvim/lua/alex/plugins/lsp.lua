@@ -227,6 +227,8 @@ return {
                     "templ",
                     "ts_ls",
                     "yamlls",
+                    -- zls only supports its exactly matching Zig minor; the Zig
+                    -- release is pinned in ansible (zig_version).
                     "zls",
                     "superhtml",
                 },
