@@ -1,6 +1,11 @@
 {
   "cleanupPeriodDays": 180,
   "includeCoAuthoredBy": false,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
     "allow": [
       "Read",
