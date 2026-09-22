@@ -67,10 +67,16 @@ flatpak_apps:
   - tv.plex.PlexDesktop
   - com.valvesoftware.Steam
 
+# Pinned for the same reason as go_packages above.
 npm_packages:
-  - yarn
-  - "@withgraphite/graphite-cli"
+  - name: yarn
+    version: "1.22.22"
+  - name: "@withgraphite/graphite-cli"
+    version: "1.8.6"
 
+# Pinned, not @latest: two machines provisioned a week apart otherwise get
+# different binaries, and a breaking release lands with nothing to point at.
+# Bump deliberately, the same way zig_version is bumped.
 go_packages:
-  - github.com/segmentio/golines@latest
-  - github.com/joshmedeski/sesh/v2@latest
+  - github.com/segmentio/golines@v0.13.0
+  - github.com/joshmedeski/sesh/v2@v2.31.0

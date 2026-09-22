@@ -52,7 +52,8 @@
 # NPM global packages
 - name: Install global NPM packages
   community.general.npm:
-    name: "{{ item }}"
+    name: "{{ item.name }}"
+    version: "{{ item.version }}"
     global: true
     state: present
   loop: "{{ npm_packages }}"
