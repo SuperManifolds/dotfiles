@@ -72,6 +72,9 @@ brew "k9s"
 # Git utilities
 brew "bfg"
 brew "git-filter-repo"
+# .gitconfig marks the lfs filter required, so a missing git-lfs is a hard
+# failure rather than a silent checkout of pointer files.
+brew "git-lfs"
 brew "git-delta"    # syntax-highlighting pager (core.pager)
 brew "difftastic"   # structural diff on demand (git dft)
 

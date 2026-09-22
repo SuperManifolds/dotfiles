@@ -22,6 +22,9 @@ dnf_packages:
   - pipx
   - helm
   - git-filter-repo
+  # .gitconfig marks the lfs filter required = true, so a missing git-lfs is a
+  # hard failure rather than a silent checkout of pointer files.
+  - git-lfs
   # Secret scanning in the global pre-commit hook. The hook hard-fails without
   # it rather than skipping, so it has to be installed, not optional.
   - gitleaks
