@@ -9,6 +9,13 @@ Create a pull request from the current branch. If `$ARGUMENTS` is provided, use 
 
 ## Steps
 
+0. **Resolve who you are authoring as**, because steps 3 and 5 compare against this person's own
+   merged PRs rather than the repo's most recent ones:
+   ```bash
+   gh api user --jq '.login'
+   ```
+   Keep it for steps 3, 5 and 10.
+
 1. **Understand the current branch state**
    Run these in parallel (substitute the resolved base branch for `<base>`):
    ```bash
@@ -34,10 +41,21 @@ Create a pull request from the current branch. If `$ARGUMENTS` is provided, use 
      template" for a repo that has one. That failure mode is silent and it has happened.
    - If nothing is found, confirm it by listing the directory itself (`ls -a .github/`) before
      concluding the repo has no template.
-   - A template is usually a **checklist** rather than prose sections. Check whether the convention
-     is to keep it: `gh pr view <recent-merged-pr> --json body --jq '.body' | grep -c "^- \[[ x]\]"`
-     on two or three recent merged PRs. If they keep it, your body must include it too, with the
-     prose and sections from step 6 added around it.
+   - A template is usually a **checklist** rather than prose sections. Whether to keep it is a
+     **per-author** convention, not a repo-wide one, so sample **the author from step 0**, not
+     whoever merged most recently:
+     ```bash
+     gh search prs --repo <owner>/<repo> --author <you> --merged --limit 5 --json number
+     gh pr view <n> --json body --jq '.body' | grep -c "^- \[[ x]\]"
+     ```
+     If their PRs carry the checklist, **yours must carry it in full**, with the prose and sections
+     from step 6 added around it. Do not conclude "this repo drops the checklist" from other
+     people's PRs: colleagues on the same repo differ, and the template is the instruction unless
+     *your own* history says otherwise.
+   - `gh pr list --state merged --author <you>` can return **empty** even when that author has
+     merged PRs in the repo. Use `gh search prs --author <you> --merged` instead. Note the flag is
+     `--merged`, not `--state merged`, which errors. An empty `gh pr list` here reads as "this
+     author has no history to copy" and silently sends you to the wrong model.
    - If a template exists, follow its structure and checklist. If none exists, use the default
      structure in step 6.
    - Read what the checklist actually demands. Items like "at least one label" and "milestone
@@ -46,13 +64,20 @@ Create a pull request from the current branch. If `$ARGUMENTS` is provided, use 
 
 4. **Read key files that were changed** to understand what the code actually does — don't just rely on commit messages.
 
-5. **Match the repo's PR description style**
-   - Look at a few recent merged PRs to mirror the project's conventions: `gh pr list --state merged --limit 3 --json number,title,body`.
-   - If the repo has an obvious house style (headers, section names, level of detail), follow it over the default below.
+5. **Match the style of the author's own merged PRs**
+   - Read two or three in full, from step 3's search, and mirror them: `gh pr view <n> --json title,body`.
+   - Copy their actual shape, which is usually more specific than a repo-wide house style: heading
+     level (`###` vs `##`), section names and order, whether measurements get their own section,
+     whether the opening prose carries a header at all, and how much detail a reviewer is expected
+     to get without opening the diff.
+   - Only fall back to other authors' PRs, and then to the default structure in step 6, when the
+     author has no merged PRs in this repo.
 
 6. **Write the PR description**
 
-   If the repo has a PR template (step 3), use it as the base structure and fill in its sections. Otherwise, use this default structure:
+   If the repo has a PR template (step 3), use it as the base structure and fill in its sections,
+   keeping its checklist whenever the author's own merged PRs keep theirs. Otherwise, use this
+   default structure:
 
    - **Opening prose**: 1-3 paragraphs explaining what this PR accomplishes and how, in plain language. No headers, no bullet points — just clear prose that someone unfamiliar with the codebase could follow. Include usage examples (annotation format, config snippets, CLI invocations) inline with code blocks where relevant.
 
@@ -95,10 +120,7 @@ Create a pull request from the current branch. If `$ARGUMENTS` is provided, use 
    - If merged PRs carry a milestone, set the same one (`--milestone "<title>"`); check the open list
      with `gh api repos/<owner>/<repo>/milestones --jq '.[].title'`.
 
-9. **Get the current GitHub username** for assignment:
-   ```bash
-   gh api user --jq '.login'
-   ```
+9. **Use the username from step 0** for assignment.
 
 10. **Create the PR as a draft**
     ```bash
@@ -137,3 +159,9 @@ Create a pull request from the current branch. If `$ARGUMENTS` is provided, use 
 - Do not add Claude Code attribution to the PR description.
 - Always create as a draft PR and assign the current user.
 - Respect the repo's PR template and checklist over these defaults when they conflict.
+- When the template, other people's PRs, and the author's own PRs disagree, the order of authority
+  is: **the author's own merged PRs, then the template, then anything else**. Do not drop a
+  template checklist because recent PRs by colleagues lack it.
+- Tick only boxes the PR genuinely satisfies. Leaving one unticked with a sentence in the prose
+  saying why is better than a checklist that claims something untrue: an over-length diff stays
+  over-length, and reviewer selection is the author's to make.
