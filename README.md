@@ -33,6 +33,22 @@ OS keychain work without a GUI to unlock it. The keyring is created with an empt
 passphrase so nothing ever prompts, which means its secrets are protected by file
 permissions on `~/.local/share/keyrings` alone.
 
+## Checking the package lists
+
+Three lists declare what gets installed — `Brewfile`, `ansible/.../vars/fedora.yml`
+and `vars/arch.yml` — and nothing installs from more than one of them, so a tool
+added to one and forgotten in another goes unnoticed until you type its name on
+the wrong machine.
+
+```bash
+./check-packages
+```
+
+Every package carries a declared policy (`all`, `linux`, `macos`, or
+`gap:<reason>`), and the check fails only where reality and the declaration
+disagree. A new package with no policy fails too, as does a policy naming a
+package no list has any more. Add the policy in the same commit as the package.
+
 ## What's Included
 
 ### Packages

@@ -45,6 +45,7 @@ dnf_packages:
   - fd-find
   - bat
   - zoxide
+  - btop
   - unar
 
 # Paired with the zls version Mason installs (see fedora.yml).

@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""Compare the per-platform package lists against each other.
+
+    ./check-packages
+
+Three lists declare what gets installed — Brewfile (macOS), ansible
+vars/fedora.yml and vars/arch.yml — and nothing ties them together, so a tool
+added to one and forgotten in another is invisible until you type its name on
+the wrong machine. That is how btop, dust and xh ended up on Arch only.
+
+A raw set difference is useless here: most of what differs is installed by a
+separate task rather than missing, so the noise buries the real gaps. Every
+package therefore carries a declared policy below, and the check fails only
+where reality and the declaration disagree.
+
+Three checks, both directions:
+  1. Every package in every list has a policy. A new package fails this.
+  2. Reality matches the policy. A package that quietly left one list fails.
+  3. Every policy names a package some list still has. A tool that left the
+     repo leaves a stale line that otherwise still reads as coverage.
+
+Scope is the base lists. The desktop lists and casks are inherently
+platform-shaped and are not compared.
+"""
+
+import sys
+import pathlib
+import re
+
+# PyYAML rather than a hand-rolled parser: ansible-core requires pyyaml >= 5.1
+# and ansible is in all three package lists, so it is present wherever these
+# dotfiles provision. Failing loudly beats a fallback parser that quietly
+# disagrees with the one ansible itself uses to read these files.
+try:
+    import yaml
+except ImportError:
+    sys.exit("check-packages needs PyYAML, which ansible pulls in. "
+             "Install ansible, or: dnf install python3-pyyaml")
+
+ROOT = pathlib.Path(__file__).resolve().parent
+
+# ---------------------------------------------------------------- policies ---
+# Where each tool is expected to be declared:
+#   all           Brewfile, Fedora and Arch
+#   linux         Fedora and Arch
+#   macos         Brewfile only
+#   gap:<reason>  deliberately uneven, and the reason says why
+#
+# A gap is a claim that someone checked. Prefer "all" or "linux" and fix the
+# list; reach for a gap only when the platform genuinely gets the tool by
+# another route, or genuinely should not have it.
+POLICY = {
+    # Present everywhere.
+    "ansible": "all",
+    "aws-cli": "all",
+    "bat": "all",
+    "difftastic": "all",
+    "eza": "all",
+    "fastfetch": "all",
+    "fd": "all",
+    "ffmpeg": "all",
+    "fish": "all",
+    "fzf": "all",
+    "gh": "all",
+    "git-delta": "all",
+    "git-filter-repo": "all",
+    "git-lfs": "all",
+    "gitleaks": "all",
+    "gnupg": "all",
+    "go": "all",
+    "helm": "all",
+    "jq": "all",
+    "k9s": "all",
+    "mariadb": "all",
+    "nodejs": "all",
+    "p7zip": "all",
+    "ripgrep": "all",
+    "stow": "all",
+    "tmux": "all",
+    "tree-sitter-cli": "all",
+    "unar": "all",
+    "yt-dlp": "all",
+    "zoxide": "all",
+    "netcat": "all",
+    "pipx": "all",
+
+    # Linux-only by nature.
+    "chromium": "gap:macOS drives a real Chrome that agent-browser downloads itself",
+    "gnome-keyring": "gap:macOS has its own Keychain; see tasks/headless-keyring.yml",
+    "keyd": "gap:Linux-only remapper; macOS uses karabiner",
+    "avahi": "gap:Arch needs it for mDNS; Fedora ships it in the base install",
+    "nss-mdns": "gap:pairs with avahi, same reason",
+
+    # Installed on Fedora by a dedicated task rather than dnf.
+    "neovim": "gap:Fedora builds it from the agriffis/neovim-nightly COPR",
+    "azure-cli": "gap:Fedora installs it from the Microsoft repo",
+    "opentofu": "gap:Fedora installs it from the OpenTofu repo, Arch from the AUR",
+    "vault": "gap:Fedora installs it from the HashiCorp repo",
+    "mise": "gap:Fedora and macOS install it from the upstream installer",
+    "golangci-lint": "gap:Fedora installs a pinned release in its own task",
+    "rustup": "gap:Fedora installs it from the upstream installer",
+    "zig": "gap:Fedora unpacks a pinned tarball, matched to the zls minor",
+    "swift": "gap:Fedora has its own task; Arch takes swift-bin from the AUR",
+    "starship": "gap:the fish role installs it from the upstream installer",
+    "pyenv": "gap:Fedora has its own task; macOS takes the brew formula",
+    "bfg": "gap:Arch takes it from the AUR; Fedora has no package for it",
+
+    "btop": "linux",
+    # Neither is packaged for Fedora — `dnf search` finds only Xhosa langpacks
+    # and Dustismo fonts. Arch has both. Reach for `cargo install du-dust xh`
+    # on Fedora, or add a cargo_packages list the way go_packages works.
+    "dust": "gap:no Fedora package; cargo install du-dust",
+    "xh": "gap:no Fedora package; cargo install xh",
+    "git": "gap:Fedora pulls git in as a dependency and never names it",
+    "docker": "gap:this Fedora box is an OrbStack VM, which provides the engine",
+    "docker-compose": "gap:pairs with docker, same reason",
+
+    # macOS-only conveniences.
+    "coreutils": "gap:GNU coreutils are already the system ones on Linux",
+    "pngpaste": "macos",
+    "sesh": "gap:Linux installs it from go_packages",
+    "weechat": "gap:Linux stows the config but installs weechat by hand",
+    "mas": "macos",
+    "sudo-touchid": "macos",
+    "graphite": "gap:Linux installs it from npm_packages",
+    "uv": "gap:not yet on the Linux lists; add it or argue a gap",
+    "gopls": "gap:Linux gets it from the Go toolchain on demand",
+    "biome": "gap:not yet on the Linux lists; add it or argue a gap",
+    "golines": "gap:Linux installs it from go_packages",
+    "swiftly": "gap:macOS toolchain manager; Linux uses the swift packages above",
+    "yarn": "gap:Linux installs it from npm_packages",
+    "mariadb-connector-c": "gap:the Linux mariadb packages bundle the client library",
+}
+
+# ------------------------------------------------------------------ aliases ---
+# Each ecosystem spells some of these differently.
+ALIASES = {
+    "fedora": {
+        "awscli2": "aws-cli", "nmap-ncat": "netcat",
+        "golang": "go", "ffmpeg-free": "ffmpeg", "gnupg2": "gnupg",
+        "fd-find": "fd", "mariadb-server": "mariadb", "npm": None,
+    },
+    "arch": {
+        "aws-cli-v2": "aws-cli", "openbsd-netcat": "netcat",
+        "github-cli": "gh", "7zip": "p7zip", "unarchiver": "unar",
+        "python-pipx": "pipx", "npm": None,
+        "opentofu-bin": "opentofu", "swift-bin": "swift",
+    },
+    "brew": {
+        "awscli": "aws-cli", "node": "nodejs", "unar": "unar",
+        "artginzburg/tap/sudo-touchid": "sudo-touchid",
+        "withgraphite/tap/graphite": "graphite",
+    },
+}
+
+
+def canon(platform, name):
+    """Map a platform's spelling to the shared name. None means 'ignore'."""
+    table = ALIASES[platform]
+    if name in table:
+        return table[name]
+    return name
+
+
+def load():
+    fed = yaml.safe_load((ROOT / "ansible/roles/packages/vars/fedora.yml").read_text())
+    arch = yaml.safe_load((ROOT / "ansible/roles/packages/vars/arch.yml").read_text())
+    brewfile = (ROOT / "Brewfile").read_text()
+
+    lists = {
+        "fedora": fed["dnf_packages"],
+        # AUR packages are just another way Arch installs something.
+        "arch": arch["pacman_packages"] + arch.get("aur_packages", []),
+        "brew": re.findall(r'^brew "([^"]+)"', brewfile, re.M),
+    }
+    out = {}
+    for platform, names in lists.items():
+        out[platform] = {c for c in (canon(platform, n) for n in names) if c}
+    return out
+
+
+def main():
+    where = load()
+    everything = set().union(*where.values())
+    failures = []
+
+    def ok(msg):
+        print(f"ok       {msg}")
+
+    def bad(msg):
+        print(f"FAIL     {msg}")
+        failures.append(msg)
+
+    print("== every package has a declared policy ==")
+    for pkg in sorted(everything):
+        if pkg not in POLICY:
+            here = ", ".join(sorted(p for p in where if pkg in where[p]))
+            bad(f"{pkg} is in {here} and has no policy. Add it to POLICY.")
+    if not failures:
+        ok(f"all {len(everything)} packages declared")
+
+    print()
+    print("== reality matches the policy ==")
+    expected_for = {
+        "all": {"fedora", "arch", "brew"},
+        "linux": {"fedora", "arch"},
+        "macos": {"brew"},
+    }
+    for pkg, policy in sorted(POLICY.items()):
+        actual = {p for p in where if pkg in where[p]}
+        if policy.startswith("gap:"):
+            ok(f"{pkg} -> gap ({policy[4:]})")
+            continue
+        want = expected_for.get(policy)
+        if want is None:
+            bad(f"{pkg}: unknown policy {policy!r}")
+        elif actual == want:
+            ok(f"{pkg} -> {policy}")
+        else:
+            missing = ", ".join(sorted(want - actual)) or "nothing"
+            extra = ", ".join(sorted(actual - want))
+            detail = f"missing from {missing}"
+            if extra:
+                detail += f"; unexpectedly in {extra}"
+            bad(f"{pkg}: policy says {policy}, but it is {detail}")
+
+    print()
+    print("== no stale policies ==")
+    stale = [p for p in POLICY if p not in everything]
+    for pkg in sorted(stale):
+        bad(f"POLICY names {pkg}, which no list has any more. Remove the entry.")
+    if not stale:
+        ok("every policy names a package some list still has")
+
+    print()
+    if failures:
+        print(f"{len(failures)} check(s) failed")
+        return 1
+    print("all checks passed")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
