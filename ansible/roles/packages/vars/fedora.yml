@@ -25,6 +25,10 @@ dnf_packages:
   # .gitconfig marks the lfs filter required = true, so a missing git-lfs is a
   # hard failure rather than a silent checkout of pointer files.
   - git-lfs
+  # Provides the Secret Service (org.freedesktop.secrets) that credential-storing
+  # tools talk to. On a headless box it also needs the unlock unit; see
+  # tasks/headless-keyring.yml.
+  - gnome-keyring
   # Secret scanning in the global pre-commit hook. The hook hard-fails without
   # it rather than skipping, so it has to be installed, not optional.
   - gitleaks

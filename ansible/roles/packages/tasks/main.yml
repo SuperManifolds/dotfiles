@@ -23,6 +23,14 @@
     - ansible_os_family == "Archlinux"
     - install_desktop | default(true)
 
+# Headless Linux only. A desktop session already runs an unlocked keyring via
+# PAM, and replacing that daemon with an empty-passphrase unlock would break it.
+- name: Include headless keyring tasks
+  ansible.builtin.include_tasks: headless-keyring.yml
+  when:
+    - ansible_system == "Linux"
+    - not (install_desktop | default(true))
+
 # Cross-platform, and last: these npm CLIs need node from the OS lists above.
 - name: Include agent CLI tasks
   ansible.builtin.include_tasks: agent-clis.yml

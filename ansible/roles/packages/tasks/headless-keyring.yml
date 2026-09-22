@@ -1,0 +1,32 @@
+---
+# Tools that keep credentials in the OS keychain reach it through the Secret
+# Service on D-Bus. A desktop session runs gnome-keyring unlocked via PAM and
+# needs nothing here; a headless box has no such session, so the collection
+# stays locked and every store fails. This unlocks it at session start.
+#
+# The keyring is created on first run with an EMPTY passphrase, so nothing ever
+# prompts. Secrets in ~/.local/share/keyrings are then protected by file
+# permissions alone — any process running as this user can read them. That is
+# the trade-off for unattended access; use a real passphrase instead by dropping
+# this unit and unlocking by hand.
+
+- name: Ensure the systemd user unit directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/systemd/user"
+    state: directory
+    mode: '0755'
+
+- name: Deploy the headless keyring unlock unit
+  ansible.builtin.copy:
+    src: gnome-keyring-unlock.service
+    dest: "{{ ansible_env.HOME }}/.config/systemd/user/gnome-keyring-unlock.service"
+    mode: '0644'
+  register: keyring_unit
+
+- name: Enable and start the keyring unlock unit
+  ansible.builtin.systemd:
+    name: gnome-keyring-unlock.service
+    enabled: true
+    state: "{{ 'restarted' if keyring_unit.changed else 'started' }}"
+    scope: user
+    daemon_reload: true

@@ -27,6 +27,12 @@ This skips desktop-specific packages:
 - **macOS**: All casks and Mac App Store apps
 - **Fedora**: Flatpaks, Mullvad VPN, fonts, GNOME extensions, AppImages
 
+On Linux it also adds what a desktop session would otherwise provide: a systemd
+user unit that unlocks the GNOME keyring, so tools that store credentials in the
+OS keychain work without a GUI to unlock it. The keyring is created with an empty
+passphrase so nothing ever prompts, which means its secrets are protected by file
+permissions on `~/.local/share/keyrings` alone.
+
 ## What's Included
 
 ### Packages

@@ -1,0 +1,20 @@
+[Unit]
+Description=GNOME keyring daemon, unlocked for a headless session
+Documentation=man:gnome-keyring-daemon(1)
+
+[Service]
+Type=simple
+# --unlock reads the passphrase from stdin, and this keyring has an empty one,
+# so a bare newline unlocks it. It also creates the login keyring on first run.
+#
+# D-Bus activation on its own is not enough: it starts the daemon but leaves the
+# collection locked, so a client gets "Cannot create an item in a locked
+# collection", and unlocking interactively needs a gcr prompter that a headless
+# box does not have. --replace takes over from such an activated instance, which
+# would otherwise hold the name while still locked.
+ExecStart=/bin/sh -c 'echo | exec /usr/bin/gnome-keyring-daemon --replace --unlock --foreground --components=secrets'
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
