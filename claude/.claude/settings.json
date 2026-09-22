@@ -1,11 +1,11 @@
 {
   "cleanupPeriodDays": 180,
-  "includeCoAuthoredBy": false,
   "attribution": {
     "commit": "",
     "pr": "",
     "sessionUrl": false
   },
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "Read",
@@ -115,9 +115,10 @@
   "outputStyle": "Proactive",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "tui": "fullscreen",
   "autoMemoryEnabled": true,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "agentPushNotifEnabled": true,
-  "tui": "fullscreen"
+  "theme": "dark",
+  "agentPushNotifEnabled": true
 }
