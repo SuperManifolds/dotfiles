@@ -66,6 +66,16 @@
 	helper = !PATH=\"/opt/homebrew/bin:$PATH\" gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = !PATH=\"/opt/homebrew/bin:$PATH\" gh auth git-credential
+# Git LFS. Without the smudge filter a checkout yields pointer files rather
+# than content, which silently changes archive checksums — Go module zip
+# hashes, for one, so go.sum verification fails with what looks like a
+# supply-chain alert. required = true so a missing git-lfs fails loudly
+# instead of checking out pointers, the same rule the pre-commit hook follows.
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
 # Machine-local overrides, last so they win. Untracked and optional: git
 # silently ignores a missing include. Use it for anything that differs per
 # box — signing key/format, proxies, work identities.
