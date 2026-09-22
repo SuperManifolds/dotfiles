@@ -75,29 +75,60 @@ for f in $fisher_path/conf.d/*.fish
 end
 
 # --- Prompt & completions ------------------------------------------------
-# Starship prompt (cross-platform). Installed by the ansible fish role.
-if type -q starship
-    starship init fish | source
+# These four each regenerate the same shell code on every startup. Cache each
+# one's output and source the file instead, regenerating only when the tool's
+# binary is newer than its cache. The warm path uses only builtins (type,
+# command, test, source), so it spawns no processes at all.
+#
+# Worth about 7ms: 51ms -> 44ms, mean of 12 interactive starts on this box.
+# Less than the four generators cost when timed on their own, because the
+# shell still parses the same output either way -- only the subprocess and
+# the generation go away, not the parse.
+#
+# The cache lives outside ~/.config/fish, which is a stow symlink into the
+# repo, for the same reason fisher_path does.
+#
+# Invalidation is the binary's mtime, so it misses a tool that moved to a
+# different path without also being rebuilt. Force a regenerate with:
+#   rm -rf ~/.local/share/fish/generated
+set -g __fish_generated $HOME/.local/share/fish/generated
+
+# __cached_init <tool> <generator...>
+function __cached_init
+    set -l tool $argv[1]
+    type -q $tool; or return
+    set -l cache $__fish_generated/$tool.fish
+    if not test -f $cache; or not test $cache -nt (command -v $tool)
+        mkdir -p $__fish_generated
+        # Write via a temp file so a shell killed mid-generate cannot leave a
+        # half-written cache that every later shell then sources.
+        if $argv[2..] >$cache.tmp 2>/dev/null
+            mv $cache.tmp $cache
+        else
+            # A failed generate must never cost the feature itself.
+            rm -f $cache.tmp
+            $argv[2..] | source
+            return
+        end
+    end
+    source $cache
 end
 
+# Starship prompt (cross-platform). Installed by the ansible fish role.
+__cached_init starship starship init fish
+
 # iximiuz labctl completions (mirrors the zsh setup).
-if type -q labctl
-    labctl completion fish | source
-end
+__cached_init labctl labctl completion fish
 
 # mise: scoped to work projects only. The global mise config is intentionally
 # empty, so activation is inert in personal dirs; it only manages tools/env
 # inside a project that declares a .mise.toml / .tool-versions (work repos).
-if type -q mise
-    mise activate fish | source
-end
+__cached_init mise mise activate fish
 
 # zoxide: smart directory jumping via `z` / `zi` (frecency). `cd` is left
 # native; run `z <partial>` to jump. fzf.fish (a fisher plugin) provides the
 # Ctrl-R history / Ctrl-Alt-F file / git pickers and needs no init here.
-if type -q zoxide
-    zoxide init fish | source
-end
+__cached_init zoxide zoxide init fish
 
 # --- Aliases -------------------------------------------------------------
 # Claude Code with permission prompts disabled. Forwards extra args.
