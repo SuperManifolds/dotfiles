@@ -38,6 +38,8 @@ brew "sesh"    # smart tmux session manager (zoxide + tmux, fzf picker)
 brew "weechat"  # IRC client; config stowed from weechat/, secrets in sec.conf
 brew "yarn"
 brew "yt-dlp"
+brew "summarize"    # caption fetcher for the youtube-summary Claude skill
+brew "whisper-cpp"  # local speech-to-text fallback for the same skill
 brew "artginzburg/tap/sudo-touchid"
 brew "mas"
 brew "withgraphite/tap/graphite"
