@@ -2,7 +2,7 @@
 name: research
 description: Investigate a question about the codebase (and optionally docs/web) read-only, then write a grounded research artifact with file:line references. Use when asked to research, investigate, trace, or understand how something works before changing it, and as the first step of the research→plan→implement loop before /plan.
 argument-hint: "<question> [output path]"
-allowed-tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch, Agent
+allowed-tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch, Agent, AskUserQuestion
 ---
 
 Investigate the question in `$ARGUMENTS` and write a **research artifact** — a
@@ -39,8 +39,28 @@ the repo already uses one. Sections:
 
 Keep it tight and skimmable — anchors over prose.
 
+## Decisions
+
+Open questions that need a human decision are asked, not just listed. After
+writing the file and giving the summary, walk the user through them with
+`AskUserQuestion` instead of leaving them as prose in chat:
+
+- Ask only what changes the plan. Things you can settle by reading code, or that
+  have an obvious default, become recorded assumptions, not questions.
+- Up to 4 questions per call, in batches until the decisions are covered. Later
+  batches can build on earlier answers.
+- Give 2–4 concrete options each. Put your recommendation first, with
+  "(Recommended)" in its label. Each description says what happens if it is
+  chosen and what it costs, in plain words.
+- Record the answers in the research file under `## Decisions (<date>)`, and cut
+  `## Open questions` down to what is still open.
+
+If `AskUserQuestion` is not available, or the session is not interactive, leave
+the questions in `## Open questions` and say so.
+
 ## Notes
 
 - Don't propose a plan or write code — that's `/plan` and `/implement`.
-- End by suggesting `/plan <task>` using this research file as input.
+- End by suggesting `/plan <task>` using this research file as input, once the
+  decisions are recorded.
 - Suggest gitignoring `thoughts/` if the user wants these notes personal.
