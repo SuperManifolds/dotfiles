@@ -356,6 +356,38 @@ code {{
 .rcount-ok {{ fill: var(--fgSuccess); }}
 .rcount-bad {{ fill: var(--fgSerious1); }}
 
+.ln {{ fill: none; stroke-width: 2.5; stroke-linejoin: round; }}
+.ln-a {{ stroke: var(--data-a); }}
+.ln-b {{ stroke: var(--data-b); }}
+.ln-dash {{ stroke-dasharray: 7 5; }}
+.endlab {{ font-family: {MONO}; font-size: 12.5px; font-weight: 500; }}
+.endlab-a, .sublab-a, .gval-a {{ fill: var(--fg3); }}
+.endlab-b, .sublab-b, .gval-b {{ fill: var(--data-b); }}
+.sublab, .gval {{ font-family: {MONO}; font-size: 12px; }}
+.mk-a {{ fill: var(--data-a); stroke: var(--bg1); stroke-width: 1.5; }}
+.mk-b {{ fill: var(--data-b); stroke: var(--bg1); stroke-width: 1.5; }}
+.mklab {{ font-family: {MONO}; font-size: 12px; fill: var(--fg2); }}
+.diag {{ stroke: var(--fg4); stroke-width: 1; }}
+.refline {{ stroke: var(--separator2); stroke-width: 1; stroke-dasharray: 4 4; }}
+.sc {{ fill: var(--data-b); fill-opacity: .45; stroke: var(--data-b); stroke-width: 1; }}
+.db {{ stroke-width: 3; stroke-linecap: round; }}
+.db-ok {{ stroke: var(--chartSuccess); }}
+.db-bad {{ stroke: var(--chartSerious); }}
+.db-start {{ fill: var(--bg1); stroke-width: 2; }}
+.db-start-a {{ stroke: var(--data-a); }}
+.db-start-b {{ stroke: var(--data-b); }}
+table.heat {{ width: auto; border-collapse: separate; border-spacing: 2px; }}
+table.heat th, table.heat td {{ padding: 8px 12px; border: 0; text-align: center; }}
+table.heat td {{ border-radius: 2px; font-size: 13px; min-width: 52px; }}
+table.heat th.corner {{ text-align: left; text-transform: none; letter-spacing: 0; }}
+.seg {{ display: inline-flex; border: 1px solid var(--separator2); border-radius: 6px; overflow: hidden; margin: 0 0 14px; }}
+.seg button {{
+  font-family: {MONO}; font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+  padding: 6px 12px; border: 0; background: var(--bg1); color: var(--fg3); cursor: pointer;
+}}
+.seg button + button {{ border-left: 1px solid var(--separator2); }}
+.seg button[aria-pressed="true"] {{ background: var(--bg3); color: var(--fg0); }}
+.seg button:focus-visible {{ outline: 2px solid var(--accent); outline-offset: -2px; }}
 table {{ border-collapse: collapse; width: 100%; font-size: 14px; }}
 th, td {{ text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--separator1); vertical-align: top; }}
 td {{ color: var(--fg2); }}
@@ -686,7 +718,7 @@ def hbars(rows, unit="ms", label="breakdown", split=0, hot_above=None):
         bw = max((v / scale) * (x1 - x0), 1.5)
         s.append(f'<text class="phname" x="{x0 - 14}" y="{y + 15}" text-anchor="end">{name}</text>')
         s.append(f'<rect class="ph ph-{cls}" x="{x0}" y="{y + 3}" width="{bw:.1f}" height="17" rx="2"/>')
-        s.append(f'<text class="phval" x="{x0 + bw + 12:.1f}" y="{y + 16}">{v:g}{NBSP}{unit}</text>')
+        s.append(f'<text class="phval" x="{x0 + bw + 12:.1f}" y="{y + 16}">{_tick(v)}{NBSP}{unit}</text>')
         if note:
             s.append(f'<text class="phcount" x="{w - 10}" y="{y + 16}" text-anchor="end">{note}</text>')
 
@@ -763,6 +795,209 @@ def series(sets, lo, hi, label="values by index", xlabel="sample index", unit=""
         s.append(f'<text class="rowlab" x="{x1}" y="{y(st.mean(vals)) - 16:.1f}" text-anchor="end">{name}</text>')
     s.append("</svg>")
     return "\n".join(s)
+
+
+# ------------------------------------------------------------ charts: curves, maps
+def _axis(lo, hi, log, a, b):
+    """A function mapping a value in [lo, hi] onto [a, b], log10 or linear."""
+    if log:
+        la, lb = math.log10(lo), math.log10(hi)
+        return lambda v: a + (math.log10(max(v, lo)) - la) / (lb - la) * (b - a)
+    return lambda v: a + (v - lo) / (hi - lo) * (b - a)
+
+
+def _tick(v):
+    return num(v) if v >= 1000 else f"{v:g}"
+
+
+def lines(sets, xticks, yticks, log_y=False, label="curves", xlabel="", ylabel="",
+          marks=(), step=True, h=380):
+    """Several curves on shared axes, optionally log-scale on y.
+
+    sets: [(name, [(x, y), ...], 'a'|'b', dashed)]. With `step`, each point holds its
+    value until the next (a rule that changes in steps); otherwise points are joined.
+    Values above the top tick are clipped and their end label gets an up arrow, so
+    say in the chartnote where a curve leaves the frame. marks: [(x, y, text, cls)].
+    The end label of an 'a' series is fg3, because chartNeutral is too dim for text.
+    """
+    w = 1000
+    x0, x1, y0, y1 = 70, 820, h - 58, 20
+    xlo, xhi, ylo, yhi = xticks[0], xticks[-1], yticks[0], yticks[-1]
+    x = _axis(xlo, xhi, False, x0, x1)
+    y = _axis(ylo, yhi, log_y, y0, y1)
+    s = [_svg(w, h, label)]
+    for t in yticks:
+        s.append(f'<line class="grid" x1="{x0}" y1="{y(t):.1f}" x2="{x1}" y2="{y(t):.1f}"/>')
+        s.append(f'<text class="tick" x="{x0 - 12}" y="{y(t) + 4:.1f}" text-anchor="end">{_tick(t)}</text>')
+    for t in xticks:
+        s.append(f'<text class="tick" x="{x(t):.1f}" y="{y0 + 24}" text-anchor="middle">{_tick(t)}</text>')
+    s.append(f'<text class="tick" x="{(x0 + x1) / 2:.1f}" y="{h - 8}" text-anchor="middle">{xlabel}</text>')
+    s.append(f'<text class="tick" x="16" y="{(y0 + y1) / 2:.1f}" text-anchor="middle" '
+             f'transform="rotate(-90 16 {(y0 + y1) / 2:.1f})">{ylabel}</text>')
+    ends = []
+    for name, pts, cls, dashed in sets:
+        clip = lambda v: min(max(v, ylo), yhi)
+        d, last = [], None
+        for px, py in pts:
+            cx, cy = x(px), y(clip(py))
+            if last is None:
+                d.append(f"M {cx:.1f} {cy:.1f}")
+            elif step:
+                d.append(f"H {cx:.1f} V {cy:.1f}")
+            else:
+                d.append(f"L {cx:.1f} {cy:.1f}")
+            last = py
+        s.append(f'<path class="ln ln-{cls}{" ln-dash" if dashed else ""}" d="{" ".join(d)}"/>')
+        end = pts[-1][1]
+        ends.append([y(clip(end)) + 4, cls, f'{name} {_tick(end)}{" &#8593;" if end > yhi else ""}'])
+    ends.sort()
+    for i in range(1, len(ends)):  # keep end labels at least 15 units apart
+        ends[i][0] = max(ends[i][0], ends[i - 1][0] + 15)
+    for ty, cls, text in ends:
+        s.append(f'<text class="endlab endlab-{cls}" x="{x1 + 10}" y="{ty:.1f}">{text}</text>')
+    for mx, my, text, cls in marks:
+        s.append(f'<circle class="mk-{cls}" cx="{x(mx):.1f}" cy="{y(my):.1f}" r="4.5"/>')
+        s.append(f'<text class="mklab" x="{x(mx) - 9:.1f}" y="{y(my) - 9:.1f}" text-anchor="end">{text}</text>')
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+def scatter(points, lo, hi, ticks, label="scatter", xlabel="", ylabel="", refs=()):
+    """One dot per item on log-log axes with the y = x diagonal.
+
+    points: [(x, y, title)]; the title is the hover text. Values below `lo` sit on `lo`,
+    so say that in the chartnote. refs: [('x'|'y', value, text)] dashed reference lines.
+    """
+    w, h = 1000, 520
+    x0, x1, y0, y1 = 80, 970, 470, 20
+    x = _axis(lo, hi, True, x0, x1)
+    y = _axis(lo, hi, True, y0, y1)
+    s = [_svg(w, h, label)]
+    for t in ticks:
+        s.append(f'<line class="grid" x1="{x(t):.1f}" y1="{y1}" x2="{x(t):.1f}" y2="{y0}"/>')
+        s.append(f'<line class="grid" x1="{x0}" y1="{y(t):.1f}" x2="{x1}" y2="{y(t):.1f}"/>')
+        s.append(f'<text class="tick" x="{x(t):.1f}" y="{y0 + 22}" text-anchor="middle">{_tick(t)}</text>')
+        s.append(f'<text class="tick" x="{x0 - 12}" y="{y(t) + 4:.1f}" text-anchor="end">{_tick(t)}</text>')
+    s.append(f'<line class="diag" x1="{x(lo):.1f}" y1="{y(lo):.1f}" x2="{x(hi):.1f}" y2="{y(hi):.1f}"/>')
+    for axis, v, text in refs:
+        if axis == "y":
+            s.append(f'<line class="refline" x1="{x0}" y1="{y(v):.1f}" x2="{x1}" y2="{y(v):.1f}"/>')
+            s.append(f'<text class="tick" x="{x1}" y="{y(v) - 8:.1f}" text-anchor="end">{text}</text>')
+        else:
+            s.append(f'<line class="refline" x1="{x(v):.1f}" y1="{y1}" x2="{x(v):.1f}" y2="{y0}"/>')
+            s.append(f'<text class="tick" x="{x(v) + 8:.1f}" y="{y1 + 12}">{text}</text>')
+    for px, py, title in points:
+        s.append(f'<circle class="sc" cx="{x(px):.1f}" cy="{y(py):.1f}" r="4.5"><title>{title}</title></circle>')
+    s.append(f'<text class="tick" x="{(x0 + x1) / 2:.1f}" y="{h - 6}" text-anchor="middle">{xlabel}</text>')
+    s.append(f'<text class="tick" x="18" y="{(y0 + y1) / 2:.1f}" text-anchor="middle" '
+             f'transform="rotate(-90 18 {(y0 + y1) / 2:.1f})">{ylabel}</text>')
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+def dumbbell(groups, lo, hi, ticks, log=True, label="from and to", xlabel=""):
+    """Two values per row joined by a bar coloured by outcome.
+
+    groups: [(name, [(sublabel, 'a'|'b', start, end, ok, title)])]. The start is a
+    hollow dot, the end a filled one; the bar is chartSuccess when ok, chartSerious when
+    not. Use it for owed-versus-earned or before-versus-after per item.
+    """
+    w, rowh, gap = 1000, 22, 16
+    x0, x1 = 190, 970
+    n = sum(len(r) for _, r in groups)
+    h = 20 + n * rowh + len(groups) * gap + 50
+    x = _axis(lo, hi, log, x0, x1)
+    s = [_svg(w, h, label)]
+    bottom = h - 50
+    for t in ticks:
+        s.append(f'<line class="grid" x1="{x(t):.1f}" y1="14" x2="{x(t):.1f}" y2="{bottom}"/>')
+        s.append(f'<text class="tick" x="{x(t):.1f}" y="{bottom + 20}" text-anchor="middle">{_tick(t)}</text>')
+    s.append(f'<text class="tick" x="{(x0 + x1) / 2:.1f}" y="{h - 6}" text-anchor="middle">{xlabel}</text>')
+    yy = 20
+    for name, rows in groups:
+        s.append(f'<text class="rowlab" x="12" y="{yy + rowh * len(rows) / 2 + 5:.1f}">{name}</text>')
+        for sub, cls, a, b, ok, title in rows:
+            cy = yy + rowh / 2
+            s.append(f'<text class="sublab sublab-{cls}" x="{x0 - 14}" y="{cy + 4:.1f}" text-anchor="end">{sub}</text>')
+            s.append(f'<line class="db db-{"ok" if ok else "bad"}" x1="{x(a):.1f}" y1="{cy:.1f}" x2="{x(b):.1f}" y2="{cy:.1f}"/>')
+            s.append(f'<circle class="db-start db-start-{cls}" cx="{x(a):.1f}" cy="{cy:.1f}" r="5.5"><title>{title}</title></circle>')
+            s.append(f'<circle class="dot-{cls}" cx="{x(b):.1f}" cy="{cy:.1f}" r="5.5"><title>{title}</title></circle>')
+            yy += rowh
+        yy += gap
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+def grouped_bars(groups, series, top, ticks, label="grouped", ylabel="", fmt=lambda v: f"{v:g}"):
+    """Side-by-side bars per group. groups: [(label, [v per series], sublabel or '')].
+
+    series: [(name, 'a'|'b')], in bar order. Values are printed above each bar.
+    """
+    w, h = 1000, 330
+    x0, x1, y0, y1 = 70, 990, 262, 24
+    y = _axis(0, top, False, y0, y1)
+    s = [_svg(w, h, label)]
+    for t in ticks:
+        s.append(f'<line class="grid" x1="{x0}" y1="{y(t):.1f}" x2="{x1}" y2="{y(t):.1f}"/>')
+        s.append(f'<text class="tick" x="{x0 - 12}" y="{y(t) + 4:.1f}" text-anchor="end">{fmt(t)}</text>')
+    g = (x1 - x0) / len(groups)
+    bw = min(30, g / (len(series) + 1.4))
+    for i, (lab, vals, sub) in enumerate(groups):
+        cx = x0 + g * i + g / 2
+        for j, ((_, cls), v) in enumerate(zip(series, vals)):
+            bx = cx + (j - len(series) / 2) * (bw + 4) + 2
+            s.append(f'<rect class="bar-{cls}" x="{bx:.1f}" y="{y(v):.1f}" width="{bw:.1f}" '
+                     f'height="{y0 - y(v):.1f}" rx="2"/>')
+            s.append(f'<text class="gval gval-{cls}" x="{bx + bw / 2:.1f}" y="{y(v) - 7:.1f}" '
+                     f'text-anchor="middle">{fmt(v)}</text>')
+        s.append(f'<text class="tick" x="{cx:.1f}" y="{y0 + 22}" text-anchor="middle">{lab}</text>')
+        if sub:
+            s.append(f'<text class="tick" x="{cx:.1f}" y="{y0 + 40}" text-anchor="middle">{sub}</text>')
+    s.append(f'<text class="tick" x="16" y="{(y0 + y1) / 2:.1f}" text-anchor="middle" '
+             f'transform="rotate(-90 16 {(y0 + y1) / 2:.1f})">{ylabel}</text>')
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+def heatmap(rows, cols, values, token="chart1", corner="", cap=None, title=None):
+    """A table whose cells are tinted by value on a log scale, as HTML.
+
+    values[r][c] is the number in each cell; `cap` is the value that gets the full
+    tint (default: the largest). Ink switches to `--on-<token>` once the tint passes
+    half, so text stays legible in both themes. title(r, c, v) gives hover text.
+    """
+    top = math.log10(max(cap or max(max(r) for r in values), 2))
+    h = [f'<table class="heat"><tr><th class="corner">{corner}</th>'
+         + "".join(f'<th class="num">{c}</th>' for c in cols) + "</tr>"]
+    for r, lab in enumerate(rows):
+        h.append(f'<tr><th class="num">{lab}</th>')
+        for c, v in enumerate(values[r]):
+            pct = round(min(1, math.log10(max(v, 1)) / top) * 88)
+            ink = f"var(--on-{token})" if pct > 50 else "var(--fg0)"
+            tip = f' title="{title(r, c, v)}"' if title else ""
+            h.append(f'<td class="num" style="background:color-mix(in srgb, var(--{token}) {pct}%, var(--bg1));'
+                     f'color:{ink}"{tip}>{num(v)}</td>')
+        h.append("</tr>")
+    return "".join(h) + "</table>"
+
+
+def toggle(group, options, default):
+    """Buttons that show one pre-rendered variant at a time. options: [(value, label)].
+
+    Mark each variant `<div class="variant" data-group="{group}" data-v="{value}">`;
+    every variant except the default needs `hidden`. Include `toggle_js()` once.
+    """
+    return (f'<div class="seg" role="group" data-group="{group}">' + "".join(
+        f'<button type="button" data-v="{v}" aria-pressed="{str(v == default).lower()}">{lab}</button>'
+        for v, lab in options) + "</div>")
+
+
+def toggle_js() -> str:
+    return ("<script>document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{"
+            "const b=e.target.closest('button');if(!b)return;const g=seg.dataset.group;"
+            "seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));"
+            "document.querySelectorAll(`.variant[data-group=\"${g}\"]`).forEach(v=>v.hidden=v.dataset.v!==b.dataset.v);"
+            "}));</script>")
 
 
 # ----------------------------------------------------------------------- validation
