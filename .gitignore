@@ -10,3 +10,6 @@ claude/.claude/skills/synced/
 weechat/.config/weechat/sec.conf
 .DS_Store
 __pycache__/
+
+# Licensed LiveKit fonts, fetched on demand from the private livekit/web repo.
+claude/.claude/skills/livekit-report/fonts/
