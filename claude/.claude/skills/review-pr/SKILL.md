@@ -2,7 +2,7 @@
 name: review-pr
 description: Multi-pass review of the current branch as a pull request against a base branch, fanning out parallel specialized passes, then merging, reproducing, and reporting findings by severity. Use when asked to review the current branch, a diff, or a change before it ships. Reports findings only, it never posts them; pair with /review-comments for that.
 argument-hint: "[base-branch (default: main)]"
-allowed-tools: Bash, Read, Glob, Grep, Agent, Write
+allowed-tools: Bash, Read, Glob, Grep, Agent, Write, Skill
 ---
 
 Review the current branch against the base branch. The base branch is $ARGUMENTS if provided, otherwise `main`.
@@ -33,7 +33,11 @@ Then run in parallel:
 - `git diff <base>...HEAD > <dir>/diff.patch`
 - `gh pr view --json title,body,labels 2>/dev/null` if a PR exists for this branch
 
-Write a short `<dir>/intent.md` capturing what the author *says* this PR does (from commit messages + PR description). This is checked against the actual diff in Step 5.
+Write a short `<dir>/intent.md` capturing what the author *says* this PR does (from commit messages + PR description). This is checked against the actual diff in Step 5. Give it three more sections, because each one later decides whether a finding is real:
+
+- **Headline claim**: the one sentence the PR exists to make true ("the image no longer carries any credential", "restore is 14% faster"). Step 3 tests it directly.
+- **Deferred**: everything the description says is out of scope or left for later ("Not in this change", "follow-up", "known gap"). A finding that lands in this list is a design question at most.
+- **Linked work**: every PR and issue the description or commits reference (`#1277`, `VIRT-350`). Read each with `gh pr view <n> --json title,state,body` and note what it changes. A finding about a gap that a linked, in-flight PR closes is not a finding on this one, and a linked PR's description often states the runtime behaviour a pass will guess at.
 
 ## Step 2: Read project conventions
 
@@ -44,15 +48,32 @@ Write `<dir>/conventions.md` with two sections:
 1. **Rules** — project-specific conventions relevant to this diff (naming, error-handling patterns, forbidden APIs, required test patterns, etc.). Skip generic advice. If nothing relevant is found, write "no project conventions found" — don't invent any.
 2. **Tooling commands** — exact lint/typecheck/test/format commands documented in those files (e.g. `pnpm lint`, `cargo clippy --all-targets`, `pytest tests/unit`). Include any non-obvious flags or pre-steps the docs mention. If the docs don't specify, write "not documented" for that category.
 
+## Step 2b: Decide where each check runs
+
+Do this before running anything. The failure it prevents is the most common one in this skill: a suite needs root, x86_64, gVisor, a second kernel or live credentials, the local box can't provide it, and the review records "skipped" and moves on, while a machine that could run it sits idle. The default is the opposite. Every check runs in the environment the change targets, and the local box is just where the cheap checks happen.
+
+1. **Inventory what you have.** Run `uname -m`, `uname -r` and `sudo -n true` locally. Read the available-skills list in your context. The **`x86-root-vm`** skill gives you a root x86_64 VM on `ssh van-0` with docker, runsc and a pinned gVisor, one per worktree, booting in about 17 s. Treat it as available unless `ssh van-0 true` actually fails, and if it does, fix that first (the skill and memory name the usual causes, such as the WireGuard endpoint roaming) before calling anything unrunnable. Note any clusters too (kind, the dev EKS clusters named in the project's instructions) and credential files (`~/*.env`, `gh auth status` scopes).
+2. **Classify every check the review will want.** That means the project's test suites, the author's stated test plan, and the headline-claim check. For each one, write down what it needs: root, an architecture, runsc/gVisor, a kernel, docker images, live credentials, a cluster. Anything gVisor checkpoint/restore needs x86_64, because gVisor's arm64 sentry cannot serve the register sets cruise reads. On an arm64 dev box, that means the VM.
+3. **Assign each check a place** and write the table to `<dir>/environments.md`: `check — needs — runs on — how`. For VM checks, load the `x86-root-vm` skill now (Skill tool) and copy into `<dir>/environments.md` the concrete recipe this review will use: the VM name (`wt-<worktree>`, created and started with `vmctl` if it doesn't exist), its port, the two-hop ssh/scp pattern, the cross-compile commands, the mirrored source path, the env vars the suites need (`CRUISE_BIN`, `CRUISE_OVERLAY_ROOT`, `TMPDIR=/var/tmp/...`, `PATH` including `/usr/sbin`), and the marker-file pattern for waiting on long jobs. Subagents do not see the skills list, so this file is how they learn the VM exists and how to drive it.
+4. **Start the VM now** if any check needs it, so it is ready by Step 3. Stop it by name when the review is done.
+
+A check may be recorded as **not run** only after you tried it in its assigned environment and it failed for a named reason you could not fix, such as a credential nobody has, or a cluster that's down. "Needs root", "needs x86", "runsc not installed", "image not present" and "no credentials in the environment" are not reasons. They are instructions about where to run it or what to fetch first. If an input is genuinely missing, ask the user for that one thing rather than skipping.
+
 ## Step 3: Pre-flight signals
 
 Run the project's real tooling against the diff. The tooling commands captured in `<dir>/conventions.md` are the source of truth — use those exact commands when documented. Only fall back to detection when the conventions file says "not documented" for a category, by checking lockfiles and config files (`package.json` scripts, `Cargo.toml`, `pyproject.toml`, `Makefile` targets, `.github/workflows/*` for what CI runs) for what the project actually uses.
 
 Run linters, type checkers, formatters (check mode), and tests in that order. For tests, scope to changed packages/modules if the suite is large.
 
-Capture stdout+stderr to `<dir>/signals.md`. Real tooling output is higher-signal than any model pass — failures here are findings, not noise. If a documented tool isn't installed locally, note that in the signals file rather than skipping silently.
+Capture stdout+stderr to `<dir>/signals.md`. Real tooling output is higher-signal than any model pass — failures here are findings, not noise. Run each check where `<dir>/environments.md` assigned it, not only where you happen to be. Read every SKIP in the output: a test that skipped because of the local box (no python3 when the fixtures were built, no root, wrong arch, no runsc) gets rerun in an environment that can run it before it is written down, and the signals file says which environment produced each result.
 
 Time-box this step to ~3 minutes. If a test suite is too slow, run only the tests that touch changed files.
+
+**Then start the author's own test plan where it targets, in the background.** The time box covers the fast local tooling only. It is not a reason to skip the slow suites that matter most. Read the PR's testing section and commit messages for the suites the author ran, and especially for any they say were *not* rerun ("not run since the merge", "root rows not rerun"). Those are the highest-value checks in the review, because they are the ones nobody has run against this exact tree. Start them now on the environment the change targets (a VM, another architecture, a cluster), using the skills and hosts available, so they run while Step 4 fans out. Detect completion with a marker file the job writes on exit (`echo $? > done`), never with `pgrep -f` over ssh, which matches its own command line and reports a finished job as running.
+
+Also test the **headline claim** from `<dir>/intent.md` against what the build actually produces, not against the code that is supposed to produce it. If the claim is "the image carries no credential", build the image and grep the layer for the real values. If it is "restore is faster", time it. One check on the artifact is worth more than any number of passes reading the code that makes it.
+
+Record both in `<dir>/signals.md` when they finish. A failure here is a finding, and so is a rig problem you had to fix to get a result (name it, so nobody reads it as the PR's).
 
 ## Step 4: Fan out specialized review passes
 
@@ -78,6 +99,7 @@ Each subagent prompt must include:
     - `style` — code style and idiom: naming, formatting, ordering, language idioms, comment/doc style, magic numbers, function length. Code works correctly and the author didn't make a meaningful design choice — it's just *how* the code is written. Prefer concrete references to the convention being violated (e.g. "CONTRIBUTING.md says snake_case for modules"). Don't flag style on lines the diff didn't touch.
     - When unsure between `issue` and `design`, prefer `issue`. When unsure between `design` and `style`, prefer `style`.
     - **Before filing anything as `issue`, check whether the author documented that exact choice.** A comment explaining the trade-off, an error message telling a human to clean up by hand, a header paragraph stating a limitation: all mean the author decided this on purpose, and it is `design` at most. Quote the line that shows they knew. This is the largest single source of noise in the merged set, because a deliberate choice reads identically to an oversight unless you go looking for the comment.
+    - **Before filing anything that depends on how a third-party library behaves, read that library's source** at the version the repo pins, and at the latest release when the code may be tracking upstream. A code comment, a test comment or memory describing what the SDK does is a claim, not evidence. Download the package (`pip download`, `npm pack`, the wheel or crate from its registry) and cite the file and line. Without that citation the finding is `verify` at best.
   - **confidence** is `confident` (directly visible in the code being read) or `verify` (plausible but depends on assumptions about code/runtime not directly read). Default to `verify` when unsure — over-claiming confidence is the bigger failure mode. Style findings are almost always `confident`.
   - No prose, no recap, no preamble.
   - If the agent cannot write the file for any reason, it must say so explicitly and return the finding lines verbatim as its final message, nothing else. A silent failure to write looks identical to a pass that found nothing.
@@ -117,6 +139,8 @@ Read all `<dir>/*.md` files. Then:
    Expect this step to remove most of what arrived. Roughly a third surviving to the presented set is healthy, and a merged list that keeps nearly everything means the filter did not run.
 4. **Split by kind**: write `issue`-kind findings to `<dir>/issues.md`, `design`-kind to `<dir>/design.md`, and `style`-kind to `<dir>/style.md`. Issues drive verification, reproduction, and the main presentation. Design and style are separate output — neither is reproduced or verified. For design points, drop any item only one pass raised at low severity — almost always taste, not signal. For style, dedupe aggressively (the formatter pass and the dedicated style pass will overlap), and group near-duplicates into one entry where possible (e.g. "use snake_case for module names" with multiple file references rather than one entry per file).
 5. **Intent check**: explicitly compare `<dir>/intent.md` against the diff. Does the diff actually do what the description claims? Are there changes in the diff *not* mentioned in the intent? Both directions matter — undisclosed scope creep is an `issue`.
+
+   Then run every surviving finding against the **Deferred** and **Linked work** sections. A finding the author listed as deferred becomes a design question or is dropped. A finding about a gap that a linked PR closes is dropped, and so is one whose description of runtime behaviour contradicts what a linked PR's description states, until you have read the code that settles it.
 6. **Verification checklist for High issues**: for each remaining High-severity issue (not design point), write a concrete verification step — the specific command, test case, manual check, or file/line to inspect that would confirm the issue is real. One per issue. These checks seed Step 6's reproduction for the High issues, and back the Step 7 checklist for any that Step 6 can't settle. Save to `<dir>/verify.md`.
 
 ## Step 6: Attempt to reproduce findings
@@ -125,11 +149,13 @@ For **every** `issue`-kind finding — all severities, not just High/Medium — 
 
 The subagent prompt must include:
 - Pointer to `<dir>/issues.md` (every issue-kind finding — attempt all of them) and `<dir>/verify.md` (the concrete pre-written checks for the High ones)
+- Pointer to `<dir>/environments.md`, with the instruction that any finding needing root, x86_64, gVisor, docker, a cluster or live credentials is reproduced there, on the VM or cluster it names, using the recipe it gives. State in the prompt that the VM is running and usable. A subagent that isn't told this assumes the local box is all it has and marks the finding inconclusive.
 - Instruction to attempt reproduction for each finding using the most appropriate technique:
   - **Run an existing test** that should fail given the bug.
   - **Write a tiny reproduction script in `<dir>/`** (never inside the repo) and run it — for parsing bugs, off-by-ones, edge cases.
   - **Run the linter/type checker scoped to specific files** if the finding is a static issue.
   - **Grep / read-cross-reference** to confirm structural claims (missing caller, asymmetric update, surviving old name).
+  - **Mutate the code and run the tests** for a test-gap claim: change the line the finding says is unpinned (swap the key, drop the guard, delete the call), run the package's tests, and revert. A suite that still passes settles the claim in a way no reading can, and the mutation goes straight into the comment as evidence.
   - **Trace through code by hand** when no executable check is feasible — read the involved files end-to-end and write a 2-3 sentence justification.
 - Repo modifications are allowed when reproduction genuinely requires them — adding a failing test inside the repo's test directory, instrumenting a function with temporary logging, generating a fixture, etc. Use this leeway when it actually helps, not by default.
 - Boundaries that still apply:
@@ -153,7 +179,23 @@ After the subagent returns, read `<dir>/reproduced.md` and update the merged fin
 - **refuted** findings: remove from the report entirely.
 - **inconclusive** findings: keep, retain `(verify)` tag, note why reproduction wasn't feasible.
 
-**Then look for another machine.** For anything still `inconclusive`, check the available skills and hosts for an environment that could settle it: a VM, another architecture, a cluster, a container. A finding confirmed in the configuration the change actually targets is worth more than the rest of the report combined, and the environment usually exists. Take the highest-severity inconclusive one there rather than all of them.
+**Re-apply the severity rule now that the evidence exists.** Step 5 ranked findings before any of them had a reproduction. A vivid repro (a forged token signed with the real secret, a crash on a crafted input) is exactly what pulls a finding up the list after the fact. For each confirmed finding, restate its blast radius in one sentence, including who can reach it, on what path, for how long, and how often. Then rank on that sentence alone. "A manual build on a developer box, for about 75 seconds" is Low however clean the repro.
+
+### Refute what survived
+
+A confirmed finding means the mechanism happens. It does not mean the finding is right about what that mechanism means. In practice this is where most of the remaining errors are: a reproduction faithfully demonstrates something the author chose on purpose, that a linked PR is already fixing, that no real caller ever triggers, or that rests on a wrong belief about a dependency.
+
+Spawn one fresh `subagent_type: code-reviewer` agent whose only job is to argue that each confirmed finding is the reviewer's misunderstanding. A fresh agent matters, because the one that reproduced a finding is anchored on it. Give it `<dir>/reproduced.md`, `<dir>/intent.md` (with its Deferred and Linked work sections) and the repo. It may write only `<dir>/refutation.md`, and may download dependency source into `<dir>`. For every confirmed finding it answers each of these with evidence, quoting a file and line or naming a command and its output:
+
+1. **Did the author choose this?** Search the surrounding code, the commit messages and the PR description for a comment or sentence that explains it. Quote it if found.
+2. **Is it deferred or already being fixed?** Check the Deferred list and read each linked PR's description and diff for the same gap.
+3. **Does a real caller ever reach it?** Name the caller and the input it sends. A reproduction built on a synthetic input that no real client produces (a path the SDK never builds, a config no deployment sets) is not a defect in practice.
+4. **Is the dependency claim true?** Read the library's source at the pinned version, and at the latest release if the code may be tracking upstream. Cite the file and line.
+5. **Does the suggested fix conflict with the author's stated reason?** A fix that breaks the case the author documented is a sign the finding misread the design.
+
+Output one line per finding: `path:line — [stands|reframe|refuted] — the evidence for that verdict`. Then apply it: drop `refuted`, move `reframe` to design notes as a question (quoting the line that shows the author knew), and keep `stands`. Expect this pass to cut a real share of the confirmed set. A refutation pass that cuts nothing probably did not read the linked PRs or the dependency source.
+
+**Then look for another machine.** For anything still `inconclusive`, check `<dir>/environments.md` and the available skills for an environment that could settle it: the `x86-root-vm` VM, another architecture, a cluster, a container. A finding confirmed in the configuration the change actually targets is worth more than the rest of the report combined, and the environment usually exists. If an inconclusive verdict says "needs root/x86/runsc/the full stack", that is a routing miss from Step 2b, not a verdict. Run it there yourself.
 
 Do not report a finding as unverifiable while an environment that could verify it sits unused.
 
@@ -182,3 +224,8 @@ Do NOT:
 - File a deliberate, documented choice as an `issue`.
 - Let a strong reproduction raise a finding's severity.
 - Trust that a pass ran because its final message sounded confident. Confirm its file exists.
+- Present a confirmed finding that the refutation pass has not seen.
+- Cite a third-party library's behaviour without having read its source at the pinned version.
+- Leave the author's stated test plan, or the suites they say were not rerun, unrun while an environment that could run them sits idle.
+- Record a check as skipped or not run because the local box lacks root, x86_64, runsc, an image or credentials. Route it to the environment Step 2b assigned, or ask for the missing input.
+- Spawn a reproduction subagent without pointing it at `<dir>/environments.md` and telling it the VM is up.
