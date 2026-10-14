@@ -138,6 +138,18 @@ Each of these cost real time once.
   "Unsupported use of '='".
 - **`/dev/kvm` is already `0666`** on this box and `kvm_amd nested=1`, so no group
   changes are needed and KVM-inside-VM works if something ever wants it.
+- **An inner `ssh` hop inside a `ssh van-0 "bash -s" <<'EOF'` heredoc reads stdin**, so
+  it swallows every line after it and the rest of the script silently never runs. Give
+  `ssh -p <port> alex@127.0.0.1 …` a `-n` (and `scp` a `< /dev/null`). The only symptom
+  is a script that stops after that line with exit 0 and no error.
+- **Detect a long job's end with a marker file, never `pgrep -f`.** Over ssh,
+  `pgrep -f tests.test` matches the ssh command line that carries the same string, so a
+  wait loop sees the job as running forever. That once hid a passing run for about an
+  hour. Wrap the job as `nohup bash -c "<cmd> > log 2>&1; echo \$? > log.done" &` and poll
+  for `log.done`, which also hands you the exit code.
+- **`sudo env PATH=$PATH` carries the guest user's PATH, which has no `/usr/sbin`** on
+  Debian. Tests that look up `iptables` or `ip` then fail with "no `iptables` binary on
+  PATH", which reads like a missing package. Pass `PATH=/usr/local/bin:/usr/sbin:/sbin:$PATH`.
 - A successful in-sandbox cruise dump **kills the sandbox's PID 1**, so `runsc exec`
   exits 137 either way. Judge by the images written, never the exit status.
 
