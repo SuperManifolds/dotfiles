@@ -19,8 +19,8 @@
 
 # Note: mise is intentionally NOT used for globally-installed tools. It is
 # scoped to work projects that declare a .mise.toml (see fish config.fish).
-# golangci-lint is installed via Homebrew (Brewfile); kind/stern/skaffold come
-# from each work repo's mise config.
+# golangci-lint, kind, stern and skaffold are installed via Homebrew (Brewfile);
+# work repos can still pin their own versions in mise config.
 
 # Install Rust stable toolchain
 - name: Install Rust stable toolchain
