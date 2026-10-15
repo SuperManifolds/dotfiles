@@ -1,5 +1,5 @@
 tap "artginzburg/tap"
-tap "homebrew/services"
+tap "hashicorp/tap"
 tap "withgraphite/tap"
 
 brew "ansible"
@@ -39,10 +39,10 @@ brew "weechat"  # IRC client; config stowed from weechat/, secrets in sec.conf
 brew "yarn"
 brew "yt-dlp"
 brew "summarize"    # caption fetcher for the youtube-summary Claude skill
-brew "whisper-cpp"  # local speech-to-text fallback for the same skill
-brew "artginzburg/tap/sudo-touchid"
+brew "whisper.cpp"  # local speech-to-text fallback for the same skill
+brew "artginzburg/tap/sudo-touchid", trusted: true
 brew "mas"
-brew "withgraphite/tap/graphite"
+brew "withgraphite/tap/graphite", trusted: true
 
 # Core dev tools
 brew "go"
@@ -52,6 +52,12 @@ brew "pipx"
 brew "uv"
 brew "rustup"
 brew "swiftly"
+brew "swiftlint"
+brew "vapor"       # Vapor (server-side Swift) project CLI
+brew "cmake"
+brew "ninja"
+brew "virtualenv"
+brew "luacheck"    # Lua linter
 # Needed by zls (installed by Mason); both track upstream, so the minors match.
 brew "zig"
 
@@ -68,6 +74,9 @@ brew "gitleaks"
 # Kubernetes
 brew "helm"
 brew "k9s"
+brew "kind"
+brew "stern"
+brew "skaffold"
 
 # Git utilities
 brew "bfg"
@@ -80,4 +89,14 @@ brew "difftastic"   # structural diff on demand (git dft)
 
 # Other utilities
 brew "unar"
-brew "vault"
+brew "hashicorp/tap/vault", trusted: true
+brew "wget"
+brew "htop"
+brew "iperf3"
+brew "nmap"
+brew "wireshark"   # tshark & friends; the GUI is the wireshark-app cask
+brew "poppler"     # pdftotext / pdftoppm
+brew "rizin"       # reverse-engineering framework
+brew "squashfs"
+brew "cbc"
+brew "cask"        # Emacs dependency manager (pulls in emacs)
