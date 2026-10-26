@@ -130,7 +130,12 @@ sys.exit(1 if bad else 0)
 fi
 
 # Chain to a repo-local hook if present and it isn't this global one.
-repo_hook="$(git rev-parse --git-dir 2>/dev/null)/hooks/pre-commit"
+# --git-common-dir, not --git-dir: in a linked worktree the latter points at
+# <repo>/worktrees/<name>/, which holds no hooks directory, so the repo hook
+# would never be found.
+common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+[ -n "$common_dir" ] || common_dir="$(git rev-parse --git-dir 2>/dev/null)"
+repo_hook="$common_dir/hooks/pre-commit"
 if [ -x "$repo_hook" ] && ! [ "$repo_hook" -ef "$0" ]; then
   exec "$repo_hook" "$@"
 fi

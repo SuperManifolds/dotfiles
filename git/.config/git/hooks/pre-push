@@ -5,7 +5,12 @@
 command -v git-lfs >/dev/null 2>&1 || { printf >&2 "\n%s\n\n" "This repository is configured for Git LFS but 'git-lfs' was not found on your path. If you no longer wish to use Git LFS, remove this hook by deleting the 'pre-push' file in the hooks directory (set by 'core.hookspath'; usually '.git/hooks')."; exit 2; }
 git lfs pre-push "$@" || exit $?
 
-repo_hook="$(git rev-parse --git-dir 2>/dev/null)/hooks/pre-push"
+# --git-common-dir, not --git-dir: in a linked worktree the latter points at
+# <repo>/worktrees/<name>/, which holds no hooks directory, so the repo hook
+# would never be found.
+common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+[ -n "$common_dir" ] || common_dir="$(git rev-parse --git-dir 2>/dev/null)"
+repo_hook="$common_dir/hooks/pre-push"
 if [ -x "$repo_hook" ] && ! [ "$repo_hook" -ef "$0" ]; then
   exec "$repo_hook" "$@"
 fi
