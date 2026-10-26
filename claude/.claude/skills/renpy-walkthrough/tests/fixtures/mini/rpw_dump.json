@@ -1,0 +1,274 @@
+{
+ "engine": [
+  8,
+  4,
+  1
+ ],
+ "python": 3,
+ "name": "Mini",
+ "version": "1.0",
+ "save_directory": "Mini-1",
+ "say_menu_text_filter": null,
+ "menu_include_disabled": false,
+ "dumper": null,
+ "menus": [
+  {
+   "file": "script.rpy",
+   "line": 10,
+   "label": "start",
+   "chain": [],
+   "set": null,
+   "after": {
+    "say": 0,
+    "outline": [],
+    "cut": 0
+   },
+   "items": [
+    {
+     "index": 0,
+     "caption": "Help her",
+     "condition": "True",
+     "choice": true,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": [
+      [
+       0,
+       11,
+       "python",
+       "trust += 2"
+      ]
+     ]
+    },
+    {
+     "index": 1,
+     "caption": "Walk away",
+     "condition": "True",
+     "choice": true,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": [
+      [
+       0,
+       13,
+       "python",
+       "trust -= 1"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "file": "script.rpy",
+   "line": 20,
+   "label": "start",
+   "chain": [
+    [
+     18,
+     "if _in_replay"
+    ]
+   ],
+   "set": null,
+   "after": {
+    "say": 0,
+    "outline": [],
+    "cut": 0
+   },
+   "items": [
+    {
+     "index": 0,
+     "caption": "Yes",
+     "condition": "True",
+     "choice": true,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": []
+    },
+    {
+     "index": 1,
+     "caption": "No",
+     "condition": "True",
+     "choice": true,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": []
+    }
+   ]
+  },
+  {
+   "file": "script.rpy",
+   "line": 30,
+   "label": "start",
+   "chain": [],
+   "set": null,
+   "after": {
+    "say": 0,
+    "outline": [],
+    "cut": 0
+   },
+   "items": [
+    {
+     "index": 0,
+     "caption": "Continue.",
+     "condition": "True",
+     "choice": true,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": []
+    }
+   ]
+  },
+  {
+   "file": "ch2.rpy",
+   "line": 5,
+   "label": "ch2",
+   "chain": [],
+   "set": null,
+   "after": {
+    "say": 0,
+    "outline": [],
+    "cut": 0
+   },
+   "items": [
+    {
+     "index": 0,
+     "caption": "Caption line",
+     "condition": "True",
+     "choice": false,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": []
+    },
+    {
+     "index": 1,
+     "caption": "Kiss her",
+     "condition": "True",
+     "choice": true,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": []
+    },
+    {
+     "index": 2,
+     "caption": "Leave",
+     "condition": "trust > 1",
+     "choice": true,
+     "line": 0,
+     "say": 3,
+     "nodes": 5,
+     "cut": 0,
+     "outline": []
+    }
+   ]
+  }
+ ],
+ "reads": [
+  {
+   "file": "script.rpy",
+   "line": 11,
+   "kind": "python",
+   "code": "trust += 2"
+  },
+  {
+   "file": "script.rpy",
+   "line": 13,
+   "kind": "python",
+   "code": "trust -= 1"
+  },
+  {
+   "file": "ch2.rpy",
+   "line": 40,
+   "kind": "if",
+   "code": "trust >= 2"
+  }
+ ],
+ "inputs": [
+  {
+   "file": "script.rpy",
+   "line": 3,
+   "code": "mcname = renpy.input(\"Name?\", default=\"Liam\")"
+  }
+ ],
+ "callscreens": [
+  {
+   "file": "script.rpy",
+   "line": 50,
+   "code": "call screen picker(\"m1\", \"left\")"
+  }
+ ],
+ "showscreens": [],
+ "pymenus": [],
+ "cards": [],
+ "labels": [
+  {
+   "file": "script.rpy",
+   "line": 1,
+   "name": "start",
+   "say": 40
+  },
+  {
+   "file": "ch2.rpy",
+   "line": 1,
+   "name": "ch2",
+   "say": 20
+  }
+ ],
+ "defines": [
+  {
+   "file": "choices.rpy",
+   "line": 2,
+   "kind": "define",
+   "name": "m1",
+   "code": "[Choice(\"Go left\", \"m1_1\"), Choice(\"Go right\", \"m1_2\", \"trust > 0\")]"
+  },
+  {
+   "file": "script.rpy",
+   "line": 2,
+   "kind": "default",
+   "name": "trust",
+   "code": "1"
+  },
+  {
+   "file": "gui.rpy",
+   "line": 5,
+   "kind": "define",
+   "name": "gui.choice_button_width",
+   "code": "500"
+  },
+  {
+   "file": "gui.rpy",
+   "line": 6,
+   "kind": "define",
+   "name": "gui.text_size",
+   "code": "36"
+  }
+ ],
+ "screens": [
+  {
+   "name": "choice",
+   "variant": null,
+   "file": "screens.rpy",
+   "line": 1
+  },
+  {
+   "name": "picker",
+   "variant": null,
+   "file": "choices.rpy",
+   "line": 9
+  }
+ ]
+}

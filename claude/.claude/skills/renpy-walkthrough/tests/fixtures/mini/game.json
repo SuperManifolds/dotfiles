@@ -1,0 +1,2 @@
+{"source": "/nonexistent/Mini.app", "base": "/nonexistent/autorun", "game_dir": "/nonexistent/autorun/game",
+ "lint": ["/nonexistent/Mini", "/nonexistent/autorun", "lint"], "engine": "8.4.1", "python": 3, "rpy": 1, "rpyc": 1, "rpa": []}
