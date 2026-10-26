@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # SessionStart + CwdChanged hook: bridge mise's per-directory environment
 # (toolchain PATH + [env] vars from .mise.toml/.tool-versions) into Claude's
-# Bash tool. That tool runs under `sh -c`, so it misses the mise activation the
-# interactive fish shell applies — meaning project-pinned tool versions and env
-# wouldn't take effect. Writing `export` lines to $CLAUDE_ENV_FILE fixes it:
+# Bash tool. That tool runs a non-interactive bash (CLAUDE_CODE_SHELL in
+# settings.json), so it misses the mise activation the interactive fish shell
+# applies, meaning project-pinned tool versions and env wouldn't take effect. Writing `export` lines to $CLAUDE_ENV_FILE fixes it:
 # Claude Code sources that file as a preamble before every Bash command.
 #
 # Safe no-op if CLAUDE_ENV_FILE is unset (older Claude Code) or mise is absent.

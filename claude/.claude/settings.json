@@ -126,15 +126,27 @@
     "clangd-lsp@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "cc-plugin-you-should-know@builtin": true
   },
   "outputStyle": "Proactive",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high",
+      "autoCompactWindow": 400000
+    }
+  },
+  "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "autoMemoryEnabled": true,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "agentPushNotifEnabled": true
+  "switchModelsOnFlag": true,
+  "agentPushNotifEnabled": true,
+  "env": {
+    "CLAUDE_CODE_SHELL": "/bin/bash"
+  }
 }
