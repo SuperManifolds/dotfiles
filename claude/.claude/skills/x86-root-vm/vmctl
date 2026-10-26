@@ -7,7 +7,7 @@
 # SysV ids, iptables, ptrace), so two parallel worktrees sharing one machine would
 # collide on exactly those. One VM per worktree instead.
 #
-# Nothing runs unless started. `vmctl stop-all` clears the box for gaming.
+# Nothing runs unless started. `vmctl stop-all` clears the box.
 set -uo pipefail
 H="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The base new machines clone. Indirected through CURRENT_BASE so `vmctl golden`
@@ -92,7 +92,8 @@ cmd_start() {
     -pidfile "$d/qemu.pid" -daemonize || die "qemu failed to start (see $d/console.log)"
   echo -n "starting $name (port $PORT) "
   for _ in $(seq 1 90); do
-    ssh -q -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    # -n: without it this probe eats the caller's stdin, e.g. the rest of a `bash -s` heredoc.
+    ssh -n -q -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         -o ConnectTimeout=2 -p "$PORT" alex@127.0.0.1 true 2>/dev/null && { echo "ready"; return; }
     echo -n .; sleep 2
   done
@@ -115,7 +116,7 @@ PY
 }
 
 cmd_stop_all() {
-  # Deliberately gated. This is the "clear the box before gaming" command, and on a
+  # Deliberately gated. This is the "clear the box" command, and on a
   # box running several worktrees it will stop machines other sessions are using —
   # which is why an agent should stop its OWN machine by name instead.
   local yes=${1:-} live=()
@@ -204,7 +205,7 @@ vmctl — thin per-worktree x86_64 VMs (nothing runs unless started)
 
   vmctl create <name> [--cpus N] [--mem G] [--disk G]   thin overlay on the shared base
   vmctl start|stop <name>                               stop = ACPI powerdown
-  vmctl stop-all [--yes]                                clear the box for gaming
+  vmctl stop-all [--yes]                                clear the box
                                                         (gated: may hit other worktrees)
   vmctl ssh <name> [cmd...]
   vmctl list
