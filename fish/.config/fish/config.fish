@@ -100,13 +100,15 @@ function __cached_init
     set -l cache $__fish_generated/$tool.fish
     if not test -f $cache; or not test $cache -nt (command -v $tool)
         mkdir -p $__fish_generated
-        # Write via a temp file so a shell killed mid-generate cannot leave a
-        # half-written cache that every later shell then sources.
-        if $argv[2..] >$cache.tmp 2>/dev/null
-            mv $cache.tmp $cache
+        # Write via a per-process temp file so neither a shell killed
+        # mid-generate nor several shells regenerating at once (e.g. a
+        # terminal restoring many tabs) can leave a mangled cache.
+        set -l tmp $cache.$fish_pid.tmp
+        if $argv[2..] >$tmp 2>/dev/null
+            mv $tmp $cache
         else
             # A failed generate must never cost the feature itself.
-            rm -f $cache.tmp
+            rm -f $tmp
             $argv[2..] | source
             return
         end
