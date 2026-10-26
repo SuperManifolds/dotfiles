@@ -5,17 +5,19 @@
 # ///
 """Identify audio files against Shazam and AudD.
 
-Usage: identify.py [--no-audd] [--jsonl RESULTS] <audio file> [more files ...]
+Usage: identify.py [--no-audd] [--clips N] [--jsonl RESULTS] <audio file> [more files ...]
 
-Cuts short mono WAV clips from each file with ffmpeg, matches every clip
-against Shazam and one clip against AudD. The two catalogues disagree often enough on stock
+Prints the file's embedded tags, cuts N (default 3) short mono WAV clips
+spread evenly over each file with ffmpeg, matches every clip against Shazam
+and the middle clip against AudD. The two catalogues disagree often enough on stock
 music that both are worth printing, and a Shazam hit on a single clip is often
 a coincidental match, so the verdict line reports how many clips agree and
 whether the matched title resembles the filename.
 
 --jsonl appends one record per file and skips files already recorded, so an
 interrupted sweep resumes where it stopped. --no-audd keeps a sweep inside
-AudD's small anonymous daily quota; AUDD_API_TOKEN lifts that quota.
+AudD's small anonymous daily quota; AUDD_API_TOKEN lifts that quota. --clips 8
+finds tracks that 3 clips miss, at about three times the run time.
 """
 
 import argparse
@@ -35,8 +37,7 @@ from shazamio.exceptions import FailedDecodeJson
 
 CLIP_SECONDS = 15
 CLIP_SAMPLE_RATE_HZ = 16000
-CLIP_POSITIONS = (0.15, 0.45, 0.75)
-AUDD_CLIP_INDEX = 1
+DEFAULT_CLIPS = 3
 AUDD_URL = "https://api.audd.io/"
 AUDD_TIMEOUT_SECONDS = 60
 SHAZAM_PAUSE_SECONDS = 1.0
@@ -51,6 +52,24 @@ def duration_seconds(path: Path) -> float:
         capture_output=True, text=True, check=True,
     ).stdout.strip()
     return float(out)
+
+
+def embedded_tags(path: Path) -> dict[str, str]:
+    """Container and stream tags. Ogg Vorbis keeps its tags on the stream, so
+    format tags alone come back empty for .ogg files."""
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format_tags:stream_tags", "-of", "json", str(path)],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    data = json.loads(out)
+    tags = dict(data.get("format", {}).get("tags", {}))
+    for stream in data.get("streams", []):
+        tags.update(stream.get("tags", {}))
+    return tags
+
+
+def clip_positions(count: int) -> list[float]:
+    return [(index + 0.5) / count for index in range(count)]
 
 
 def cut_clip(path: Path, offset: float, dest: Path) -> None:
@@ -152,19 +171,23 @@ def verdict(path: Path, hits: list[dict | None], audd: dict | None) -> dict:
     return {"shazam": best, "clips_agreeing": count, "filename_match": filename_match, "audd_agrees": audd_agrees, "trust": trust}
 
 
-async def identify(shazam: Shazam, path: Path, workdir: Path, use_audd: bool) -> dict:
+async def identify(shazam: Shazam, path: Path, workdir: Path, use_audd: bool, clips: int) -> dict:
     total = duration_seconds(path)
-    print(f"{path} ({total:.0f}s, {int(total // 60)}:{int(total % 60):02d})")
+    tags = embedded_tags(path)
+    print(f"{path} ({total:.1f}s, {int(total // 60)}:{int(total % 60):02d})")
+    if tags:
+        print("  tags: " + "; ".join(f"{k}={v}" for k, v in tags.items()))
     hits: list[dict | None] = []
     audd: dict | None = None
-    for index, position in enumerate(CLIP_POSITIONS):
+    audd_index = clips // 2
+    for index, position in enumerate(clip_positions(clips)):
         offset = max(0.0, min(total * position, total - CLIP_SECONDS))
         clip = workdir / f"clip_{index}.wav"
         cut_clip(path, offset, clip)
         hit = await shazam_match(shazam, clip)
         hits.append(hit)
         print(f"  shazam @{offset:5.0f}s: {describe_shazam(hit)}")
-        if use_audd and index == AUDD_CLIP_INDEX:
+        if use_audd and index == audd_index:
             audd = await audd_match(clip)
             print(f"  audd   @{offset:5.0f}s: {describe_audd(audd)}")
         await asyncio.sleep(SHAZAM_PAUSE_SECONDS)
@@ -176,7 +199,7 @@ async def identify(shazam: Shazam, path: Path, workdir: Path, use_audd: bool) ->
         )
     else:
         print("  verdict: none | shazam matched no clip")
-    return {"file": str(path), "duration": round(total, 1), "audd": audd, **result}
+    return {"file": str(path), "duration": round(total, 1), "tags": tags, "audd": audd, **result}
 
 
 def already_done(jsonl: Path | None) -> set[str]:
@@ -189,9 +212,12 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description="Identify audio files against Shazam and AudD.")
     parser.add_argument("files", nargs="+", type=Path, metavar="audio-file")
     parser.add_argument("--no-audd", action="store_true", help="skip AudD (anonymous quota is a few requests per day)")
+    parser.add_argument("--clips", type=int, default=DEFAULT_CLIPS, help=f"clips per file (default {DEFAULT_CLIPS}; 8 for a second pass)")
     parser.add_argument("--jsonl", type=Path, help="append one JSON record per file; files already recorded are skipped")
     args = parser.parse_args()
 
+    if args.clips < 1:
+        parser.error("--clips must be at least 1")
     missing = [str(p) for p in args.files if not p.is_file()]
     if missing:
         sys.exit(f"not a file: {', '.join(missing)}")
@@ -203,7 +229,7 @@ async def main() -> None:
                 print(f"{path}: already in {args.jsonl}, skipped")
                 continue
             try:
-                record = await identify(shazam, path, Path(tmp), use_audd=not args.no_audd)
+                record = await identify(shazam, path, Path(tmp), use_audd=not args.no_audd, clips=args.clips)
             except LOOKUP_ERRORS as error:
                 detail = (getattr(error, "stderr", None) or str(error)).strip().splitlines()[-1]
                 print(f"  error: {type(error).__name__}: {detail}")
