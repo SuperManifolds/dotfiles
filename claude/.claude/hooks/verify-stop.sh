@@ -5,24 +5,34 @@
 #
 # Kept cheap and non-naggy:
 #   - only acts in a git repo with dirty source of a supported language
+#   - skips sessions that never used a file-editing tool (dirty files they
+#     didn't touch are not theirs to verify)
 #   - skips unless the code state changed since the last check (content hash,
 #     per session) → no run on conversational turns, no re-run on no-op stops
 #   - blocks at most once per distinct code state; the built-in 8-block cap is
 #     the ultimate backstop against loops
 # Fast checks only (no full test suite): cargo check / go build / swift build /
-# make. Never blocks on missing tools or outside a git repo (fail-open).
+# make / the package.json `typecheck` script. Never blocks on missing tools or
+# outside a git repo (fail-open).
 export LC_ALL="${LC_ALL:-en_US.UTF-8}" LANG="${LANG:-en_US.UTF-8}"
 
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat)
 session=$(printf '%s' "$input" | jq -r '.session_id // "nosession"')
+transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty')
+
+# Only verify sessions that edited files. Without a readable transcript, fall
+# through and check anyway (fail-open toward verifying).
+if [ -n "$transcript" ] && [ -r "$transcript" ]; then
+  grep -qE '"name":"(Edit|MultiEdit|Write|NotebookEdit)"' "$transcript" || exit 0
+fi
 
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$root" 2>/dev/null || exit 0
 
 # Files changed vs HEAD (unstaged+staged) plus staged-without-HEAD plus untracked.
 changed=$({ git diff --name-only HEAD 2>/dev/null; git diff --cached --name-only 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null; } | sort -u)
-srcre='\.(rs|go|swift|c|h|cc|cpp|cxx|hpp|hh|m|mm)$'
+srcre='\.(rs|go|swift|c|h|cc|cpp|cxx|hpp|hh|m|mm|ts|tsx|mts|cts)$'
 printf '%s\n' "$changed" | grep -qiE "$srcre" || exit 0
 
 # Which languages are dirty?
@@ -32,6 +42,7 @@ has '\.rs$'                        && langs="$langs rust"
 has '\.go$'                        && langs="$langs go"
 has '\.swift$'                     && langs="$langs swift"
 has '\.(c|h|cc|cpp|cxx|hpp|hh|m|mm)$' && langs="$langs c"
+has '\.(ts|tsx|mts|cts)$'           && langs="$langs ts"
 
 # Content signature of the current code state, scoped to this session.
 sig=$({ git diff HEAD 2>/dev/null; printf '%s\n' "$changed" | grep -iE "$srcre" \
@@ -59,11 +70,17 @@ for l in $langs; do
              if grep -qE '^check:' Makefile; then run "make check" make check
              else run "make" make; fi
            fi ;;
+    ts)    [ -f package.json ] && jq -e '.scripts.typecheck' package.json >/dev/null 2>&1 || continue
+           if   [ -f bun.lock ] || [ -f bun.lockb ]; then pm=bun
+           elif [ -f pnpm-lock.yaml ]; then pm=pnpm
+           elif [ -f yarn.lock ]; then pm=yarn
+           else pm=npm; fi
+           command -v $pm >/dev/null 2>&1 && run "$pm run typecheck" $pm run --silent typecheck ;;
   esac
 done
 
 if [ -n "$fails" ]; then
-  reason="Verification failed — do not stop yet. Fix these, then continue:${fails}"
+  reason="Verification failed: do not stop yet. Fix these, then continue:${fails}"
   reason=$(printf '%s' "$reason" | tail -c 4000)
   jq -nc --arg r "$reason" '{decision:"block", reason:$r}'
 fi
