@@ -12,7 +12,7 @@ and turn them into a posted review on `$ARGUMENTS` (or the PR for the current br
 This skill does **not** find bugs. If there are no findings yet, run `/review-pr` first.
 
 The pipeline is: read the authority → verify → filter → classify → **inventory, the reviewer cuts** →
-draft → **the reviewer signs off** → post. The two gates are not ceremony; they are what makes the
+draft → de-slop → **the reviewer signs off** → post. The two gates are not ceremony; they are what makes the
 comments legitimate, and the first one is what stops polished prose being written for findings that
 are about to be cut.
 
@@ -111,6 +111,19 @@ Forbidden, all of these have been rejected in review:
 - Headers, bullets or tables **inside** an inline comment. Prose only.
 - `Suggestion:` as a separate line. Fold it into the same sentence.
 - Formal connectors. `log and carry on` not `log and continue`; `isn't there` not `is not there`.
+- **The closing pointer sentence.** `Of the flags, the X one is what I'd most want a second look
+  at.` The reviewer asked for this gone. It appears in their older review bodies, so a corpus fetch
+  will show it and it must **not** be reinstated on that evidence: this is one of the few places a
+  direct instruction overrides Step 1's corpus rule. The labels and the body already say which
+  finding carries weight.
+
+That list is this reviewer's own, learned from rejections, and it outranks anything generic. The
+wider class of AI tells is `fix-ai-speak`'s job, and Step 4 runs it. Where the two overlap, this
+file wins, in two places specifically. **Em dashes are banned here on the reviewer's stated
+preference, not as a detection heuristic**, so do not relax the ban on the strength of
+`fix-ai-speak`'s note that they have decayed as a signal. And the house opener
+(`Looks great @person.`) stays even though it matches the sycophantic-opener pattern, because four
+of four real review bodies open that way.
 
 When the reviewer supplies their own wording for something, use it verbatim and do not improve it.
 Openers are where drafts get rejected most often; expect two or three passes on the first sentence
@@ -120,7 +133,25 @@ alone and do not treat that as failure.
 
 An approval that never ran the code is the gap a review policy exists to close. Before drafting:
 pull the branch, run the project's real lint/build/test (per its `AGENTS.md` or equivalent), and
-capture exact commands and results. Note explicitly what you did **not** run.
+capture exact commands and results. Note explicitly what you did **not** run, and only after
+Step 2's rules below have established that it genuinely could not be run.
+
+**A suite blocked on a missing input is not a result. It is a blocker to resolve or to ask about,
+in the same breath.** Credentials, private images, a second kernel, a different arch: none of these
+are reasons to write a row off. Before any of them reaches a draft, work the list:
+
+- `gh auth status` and read the **token scopes** line. `read:packages` / `write:packages` means
+  private registry images pull (`gh auth token | docker login ghcr.io -u <user> --password-stdin`).
+- `ls ~/*.env ~/.config/*` and the project's own tasks. Service credentials usually already sit in
+  a dotfile on the box.
+- 1Password (`op`), which some tasks read from directly.
+- An image that will not pull may be one the repo builds. Look for a `workloads/`-style directory
+  and a task that builds it locally.
+- Another machine (see below).
+
+If the list runs out, **ask the user for the one specific thing** before writing anything down.
+"Where are the LiveKit keys?" costs one sentence. Writing `4 fail (needs LIVEKIT_API_KEY)` into a
+verified-on paragraph spends the reviewer's credibility on a claim that was never true.
 
 For any finding you intend to post, prefer a reproduction over a code-reading argument. A
 two-command repro moves a comment from arguable to settled, and it is what good comments look like.
@@ -201,16 +232,27 @@ instruction, and on someone else's branch say whose branch it is before proposin
 
 ## Step 4: Draft
 
-**Body.** Longer than an inline comment is fine. Structure that has worked:
+**Body.** Longer than an inline comment is fine.
+
+**The body carries no asks.** Verdict, what you ran, and evidence that has no inline home. Every
+"worth changing X", "worth softening Y", "consider Z" belongs on the line it concerns, or nowhere.
+None of the four real review bodies in the corpus contains a recommendation, and the two that came
+closest were cut by the reviewer. State the measurement and let the author draw the conclusion: a
+paragraph that ends on `Seven months apart, at that.` is finished.
+
+Structure that has worked:
 
 1. The bare opener: verdict word plus the author's name, then the headline of what you ran and the
    comment counts. `Looks great @person. Pulled the branch and ran X, no blockers, three flags and
    four nits.` No clause explaining why the change is good (Step 1).
-2. A **pointer** to the finding that most deserves attention, not a retelling of it:
-   `Of the flags, the X one is what I'd most want a second look at.` Restate a finding in full only
-   when it is a blocker worth leading with, and then end it `Details inline.`
+2. Restate a finding in full only when it is a blocker worth leading with, and then end it
+   `Details inline.` Otherwise the comments speak for themselves; do not add a sentence steering
+   the author toward one of them (see Forbidden, Step 1).
 3. What you verified, as a flat list of commands and results under a `Verified on <sha>, <arch>:`
-   heading, plus what you did not run and why.
+   heading, plus what you did not run and why. Before that last clause goes in, re-read Step 2: a
+   missing credential, an unpullable image or an unbuilt kernel is not a "why", it is a thing you
+   have not done yet. The only acceptable entries are ones where the environment genuinely cannot
+   produce the result, named specifically.
 4. Anything worth knowing that has **no** inline comment attached: a claim of the author's you
    independently confirmed, evidence that belongs nowhere else, a coverage gap going elsewhere.
 
@@ -255,6 +297,29 @@ The mechanics that decide whether one is possible at all:
 of the built payload and diff its preserved lines against the file on disk. A one-character drift
 here silently rewrites the author's code and reads as if they made the mistake.
 
+**De-slop before you present.** Run the `fix-ai-speak` skill over the finished body and every
+comment. Not by reading them: write them to a scratch file, one block per comment plus one per body
+paragraph, and run its scanner.
+
+```
+python3 ~/.claude/skills/fix-ai-speak/scan.py /tmp/review-drafts.txt
+```
+
+The hits that actually land on review comments, in the order they show up: parallel `, so X`
+closers across a paragraph, present-participial tails (`..., ensuring X`), every comment coming out
+the same length and the same shape, and the absence of *because*. Fix those, then re-scan.
+
+This is a counting step, not a reading step, and the distinction is the whole point. Prose that
+reads fine sentence by sentence is exactly where the paragraph-level formula hides: in the session
+this instruction came from, drafts were declared free of rule-of-three constructions twice, by eye,
+and both times the scanner found three parallel consequence clauses in the body and three more in
+one comment. The scanner strips code spans itself, which matters on review comments because
+identifiers would otherwise swamp the counts.
+
+Two things not to over-correct. Length should track evidence, so a comment carrying a real
+measurement is allowed to be long. And leave quoted material from the author's own code or docs
+exactly as it is, tells and all.
+
 ## Step 5: Human review gate
 
 Two phases, because polished prose thrown away is the most wasted work in this skill.
@@ -269,12 +334,45 @@ F2  nit   README.md:20   the `--` is not actually required for flags
 
 Give every candidate a stable ID that cannot be read as a line number (`F1`, `F2`, …), and never
 present a bare number that could mean either a finding or a line. Split a comment that bundles
-several line references into `F2a` / `F2b`, so cutting half of it is expressible without prose. Then
-get keep/cut decisions on the list.
+several line references into `F2a` / `F2b`, so cutting half of it is expressible without prose.
 
-**Phase 2, the drafts.** Write full prose only for what survived Phase 1, and present the body and
-every comment **in the conversation**, as quoted blocks readable without opening a file. Do not post
-yet.
+List the candidates you would cut too, below the survivors under their own heading, each with the
+one-line reason (theoretical, pre-existing, matches the surrounding code). End with your keep/cut
+recommendation for the whole list.
+
+**Then walk through the list one finding at a time**, in order, survivors first and the would-cut
+candidates after. Each finding gets its own message, and the next one waits for the reviewer's
+decision. A bare list asks the reviewer to judge findings they haven't seen argued. They end up either
+trusting the labels or reopening every file themselves. Each walkthrough message covers the following:
+
+- **The claim in one sentence first**, stated as what goes wrong for whom, not as a code location.
+- **The mechanism.** Quote the actual lines (code, comments, SDK source) with `path:line`. When
+  two comments contradict each other, quote both.
+- **The evidence, re-run now.** Re-derive every number in the message with a fresh command before
+  you send it (Step 2's rule), even if a subagent already reported it.
+- **Why that severity.** Name how often it fires and what it costs, and give the counterpoint:
+  whether the author chose this, whether it predates the diff, whether something else covers it.
+  Concede the counterpoint when it holds.
+- **The fix**, and whether it can be a suggested edit (check the hunk range now, not at Step 6).
+  Show the edit or proposed wording when it is short.
+- Close with `Keep, cut, or reword?` and nothing else.
+
+Expect terse answers (`cut, next`) and move straight on, without recapping the decision. If you
+proposed folding one finding into another and the reviewer cuts the parent, present the folded one
+on its own merits when its turn comes. `skip the remaining`, or anything like it, cuts every
+finding not yet decided and moves to Phase 2. Record each decision in the run directory as you go,
+so a context reset does not lose the walkthrough.
+
+The walkthrough is reasoning for the reviewer, not comment prose. Write it in plain explanatory
+form, and leave the comment wording to Phase 2.
+
+**Phase 2, the drafts.** Write full prose only for what survived Phase 1, run Step 4's de-slop pass
+over it, and present the body and every comment **in the conversation**, as quoted blocks readable
+without opening a file. Do not post yet.
+
+When you present, say what the pass changed as deltas rather than as an assurance: "three `, so X`
+closers down to one, sentence-length CV 0.55 to 0.61" is a result a reviewer can check. "Cleaned up
+the AI-sounding phrasing" is the claim that was wrong twice.
 
 Expect the reviewer to narrow more than once, including all the way down to zero comments, and treat
 each narrowing as normal rather than as a restart. Re-present only what changed, and when they supply
@@ -371,6 +469,7 @@ Report the review URL, then:
 - Paste raw findings output into the PR. Filtering is the whole job.
 - Pad the comment count toward the ceilings in Step 3. Zero inline comments is a valid review.
 - Write final prose before the inventory has been agreed (Step 5, Phase 1).
+- Walk through several findings in one message, or move to the next before the reviewer has decided.
 - Put a bare `#N` in front of the reviewer when it could read as either a finding or a line number.
 - Read `$?` through a pipe, or put any number in a draft that only one command ever produced.
 - Write that something cannot be verified, reproduced or suggested without having run the check that
@@ -380,3 +479,5 @@ Report the review URL, then:
 - Claim tracker items exist before they are filed, or file any without being asked.
 - Put missing tests, missing docs or scope-creep observations in PR comments instead of the tracker.
 - Reformat or "improve" wording the reviewer supplied.
+- Bank a missing credential, image, kernel or arch as a test result. Resolve it or ask (Step 2).
+- Report a draft as free of AI tells on the strength of having read it. Run the scanner (Step 4).
