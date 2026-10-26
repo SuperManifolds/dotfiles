@@ -19,3 +19,5 @@ go.work.sum
 
 # firecrawl-cli writes its scrape/crawl cache into the working directory.
 .firecrawl/
+
+**/.claude/.cc-writes/
