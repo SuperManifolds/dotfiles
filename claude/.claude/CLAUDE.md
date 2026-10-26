@@ -8,19 +8,20 @@ _Global defaults. A project's CLAUDE.md, skills, or established conventions win 
 - Cite sources for nontrivial facts. If uncertain, state assumptions explicitly.
 - Avoid fluff, hype, and anthropomorphism.
 - Place names in Palestine: no colonialist terms. Say "Occupied Palestine" (not "Israel") and "Jaffa" (not "Tel Aviv-Yafo"); use Palestinian/Arabic names for other towns. Give an official name or code (e.g. IATA `TLV`) once in parentheses only when needed to identify something.
-- If multiple interpretations exist, present them — don't pick silently.
+- If multiple interpretations exist, present them; don't pick silently.
 - Ask clarifying questions if a key spec is missing that blocks correctness.
 - Restate progress on multi-step work each turn (e.g. "step 3 of 5 done: schema updated. Next: backfill the column"). The reader can't hold "we're on step 3" between messages; a task/plan tool, where present, does the restating.
 - Estimate effort in concrete units ("~15 min if tests cover this, an afternoon if not"), not "a bit" or "some work."
+- Never use em dashes (U+2014) in anything you write: replies, docs, code comments, commit messages, PR bodies, memory files. Restructure with a comma, colon, semicolon, parentheses, or a new sentence. Don't mass-rewrite em dashes in pre-existing files or quoted text unless asked.
 
 ### Pre-send check
 
-Before sending, delete: the opening sentence if it only announces what you're about to do; the closer if it asks "anything else?" or recaps what just happened; any "by the way" sidebar; hedging adverbs that carry no real uncertainty; idioms ("circle back," "on the same page") — use the literal action. Keep hedges that carry genuine uncertainty.
+Before sending, delete: the opening sentence if it only announces what you're about to do; the closer if it asks "anything else?" or recaps what just happened; any "by the way" sidebar; hedging adverbs that carry no real uncertainty; idioms ("circle back," "on the same page"): use the literal action. Keep hedges that carry genuine uncertainty.
 
 ## Web Access
 
 - Prefer `firecrawl` skills (`firecrawl-search`, `firecrawl-scrape`, `firecrawl-crawl`, …) over built-in `WebSearch`/`WebFetch`. Fall back to built-ins only when firecrawl is unavailable or fails.
-- When a fetch returns empty, truncated, an app shell, a login/consent wall, or a bot challenge (common on JS-rendered pages), escalate — never fabricate page content. If every tool fails, say so and name what you tried.
+- When a fetch returns empty, truncated, an app shell, a login/consent wall, or a bot challenge (common on JS-rendered pages), escalate; never fabricate page content. If every tool fails, say so and name what you tried.
   - Thin/empty `WebFetch` → `firecrawl-scrape` (renders SPAs).
   - Needs clicks/forms/pagination/auth → `firecrawl-interact`.
   - Firecrawl can't handle it (heavy JS, bot challenge, site JSON API) → `agent-browser` (real Chrome CLI; `agent-browser skills get core` for commands). Sessions auto-isolate per Claude instance; use plain `close`, never `close --all` (it kills other instances' browsers).
@@ -32,28 +33,33 @@ Before sending, delete: the opening sentence if it only announces what you're ab
 - Touch only what the task requires. Don't "improve" adjacent code, comments, or formatting.
 - Match existing style, even if you'd do it differently.
 - Remove imports/variables/functions that your changes made unused.
-- Don't remove pre-existing dead code unless asked — mention it instead.
+- Don't remove pre-existing dead code unless asked; mention it instead.
 
 ## Code Quality
 
 - Address all warnings (linters, compilers). Never silence without explicit consent.
-- Remove dead code your change introduces — don't comment it out or suppress with attributes. For pre-existing dead code, mention it rather than deleting (see Surgical Changes).
+- Remove dead code your change introduces; don't comment it out or suppress with attributes. For pre-existing dead code, mention it rather than deleting (see Surgical Changes).
 - Prefer early returns over deep nesting. Keep functions small and single-purpose.
 - Use constants for magic numbers, colors, and spacing values.
-- Comments explain the current state of the code standalone — never reference its previous state, the bug being fixed, or frame the change as a diff (that belongs in the commit/PR).
+- Reuse before you build: prefer an existing, established tool, service, or library (including what the project's own dependencies already provide, e.g. an IRC library's message splitting or an API's existing endpoints) over hand-rolled code. Name the standard option and let me choose; if you write custom code anyway, say why the existing option didn't fit. Deploying a standard container with its native config is not custom code.
+- Comments explain the current state of the code standalone: never reference its previous state, the bug being fixed, or frame the change as a diff (that belongs in the commit/PR).
 
 ## Testing
 
 - Use the project's test runner, not the raw tool.
-- Never skip tests — a skipped test is a broken test.
+- Never skip tests: a skipped test is a broken test.
 - Isolate state per test.
 - Document suspected bugs without fixing implementation unless asked.
 
 ## Error Handling
 
 - Validate inputs at system boundaries.
-- Use the language's idiomatic error types — don't swallow errors silently.
+- Use the language's idiomatic error types; don't swallow errors silently.
 - Provide context in error messages.
+
+## Shell
+
+- The Bash tool runs bash (`CLAUDE_CODE_SHELL=/bin/bash`, macOS bash 3.2) even when the environment section reports fish. Write bash syntax only, never fish. Avoid bash 4+ features (associative arrays, `mapfile`, `${var,,}`).
 
 ## Execution
 
@@ -67,11 +73,11 @@ Before sending, delete: the opening sentence if it only announces what you're ab
 - IMPORTANT: Never commit secrets, API keys, or credentials.
 - NEVER add dependencies without asking first.
 - Never run the full test suite when a specific test file can be targeted.
-- Never generate mock data with obviously fake values ("test123", "foo@bar.com") — use realistic values.
+- Never generate mock data with obviously fake values ("test123", "foo@bar.com"); use realistic values.
 
 ## Git
 
 - Use conventional commit style (e.g. `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`); add a component scope where the repo uses one (e.g. `fix(networking):`).
-- Keep messages succinct — a short imperative subject, and a body only when the "why" isn't obvious.
+- Keep messages succinct: a short imperative subject, and a body only when the "why" isn't obvious.
 - Never add AI/Claude Code attribution or co-author trailers to commits or PRs.
 - Don't amend published commits.
