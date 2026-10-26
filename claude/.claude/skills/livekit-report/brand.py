@@ -87,11 +87,14 @@ TOKENS = {
     "codeAmber": ("#FFB752", "#833E01"),
 }
 
-# Report-level roles, mapped onto Bytes tokens. Series "a" is the baseline, "b" ours.
+# Report-level roles, mapped onto Bytes tokens. Series "a" is the baseline, "b" ours, "c" a third
+# arm such as a proposal. chart2 is too dim for text in dark (4.46:1), so "c" text uses data-c-ink.
 ROLES = {
     "data-a": "chartNeutral",
     "data-a-soft": "chartNeutralSecondary",
     "data-b": "chart1",
+    "data-c": "chart2",
+    "data-c-ink": "fgAccentSecondary1",
 }
 
 # Ink for a label on a filled chart mark: whichever of these contrasts more with the
@@ -361,8 +364,13 @@ code {{
 .ln-b {{ stroke: var(--data-b); }}
 .ln-dash {{ stroke-dasharray: 7 5; }}
 .endlab {{ font-family: {MONO}; font-size: 12.5px; font-weight: 500; }}
+.ln-c {{ stroke: var(--data-c); }}
 .endlab-a, .sublab-a, .gval-a {{ fill: var(--fg3); }}
 .endlab-b, .sublab-b, .gval-b {{ fill: var(--data-b); }}
+.endlab-c, .sublab-c, .gval-c, .val-c {{ fill: var(--data-c-ink); }}
+.bar-c, .dot-c {{ fill: var(--data-c); }}
+.mk-c {{ fill: var(--data-c); stroke: var(--bg1); stroke-width: 1.5; }}
+.db-start-c {{ stroke: var(--data-c); }}
 .sublab, .gval {{ font-family: {MONO}; font-size: 12px; }}
 .mk-a {{ fill: var(--data-a); stroke: var(--bg1); stroke-width: 1.5; }}
 .mk-b {{ fill: var(--data-b); stroke: var(--bg1); stroke-width: 1.5; }}
@@ -379,7 +387,8 @@ code {{
 table.heat {{ width: auto; border-collapse: separate; border-spacing: 2px; }}
 table.heat th, table.heat td {{ padding: 8px 12px; border: 0; text-align: center; }}
 table.heat td {{ border-radius: 2px; font-size: 13px; min-width: 52px; }}
-table.heat th.corner {{ text-align: left; text-transform: none; letter-spacing: 0; }}
+table.heat th {{ text-transform: none; letter-spacing: 0; }}
+table.heat th.corner {{ text-align: left; }}
 .seg {{ display: inline-flex; border: 1px solid var(--separator2); border-radius: 6px; overflow: hidden; margin: 0 0 14px; }}
 .seg button {{
   font-family: {MONO}; font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
@@ -814,7 +823,7 @@ def lines(sets, xticks, yticks, log_y=False, label="curves", xlabel="", ylabel="
           marks=(), step=True, h=380):
     """Several curves on shared axes, optionally log-scale on y.
 
-    sets: [(name, [(x, y), ...], 'a'|'b', dashed)]. With `step`, each point holds its
+    sets: [(name, [(x, y), ...], 'a'|'b'|'c', dashed)]. With `step`, each point holds its
     value until the next (a rule that changes in steps); otherwise points are joined.
     Values above the top tick are clipped and their end label gets an up arrow, so
     say in the chartnote where a curve leaves the frame. marks: [(x, y, text, cls)].
@@ -931,7 +940,7 @@ def dumbbell(groups, lo, hi, ticks, log=True, label="from and to", xlabel=""):
 def grouped_bars(groups, series, top, ticks, label="grouped", ylabel="", fmt=lambda v: f"{v:g}"):
     """Side-by-side bars per group. groups: [(label, [v per series], sublabel or '')].
 
-    series: [(name, 'a'|'b')], in bar order. Values are printed above each bar.
+    series: [(name, 'a'|'b'|'c')], in bar order. Values are printed above each bar.
     """
     w, h = 1000, 330
     x0, x1, y0, y1 = 70, 990, 262, 24
