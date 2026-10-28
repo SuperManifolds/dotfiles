@@ -8,7 +8,8 @@ description: >-
   runs the project's real tests/lint/build to verify claims. Returns findings
   by severity. Read-only — recommends fixes, never applies them.
 tools: Read, Grep, Glob, Bash
-model: inherit
+model: opus
+effort: xhigh
 memory: project
 ---
 

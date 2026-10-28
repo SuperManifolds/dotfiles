@@ -7,8 +7,8 @@ description: >-
   when deciding how to structure something, choosing between approaches, or
   sanity-checking a plan. It advises and challenges; it never writes code.
 tools: Read, Grep, Glob, Bash
-model: opus
-effort: high
+model: fable
+effort: xhigh
 permissionMode: plan
 memory: project
 color: magenta
