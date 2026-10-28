@@ -2,7 +2,8 @@
 name: research
 description: Investigate a question about the codebase (and optionally docs/web) read-only, then write a grounded research artifact with file:line references. Use when asked to research, investigate, trace, or understand how something works before changing it, and as the first step of the research→plan→implement loop before /plan.
 argument-hint: "<question> [output path]"
-allowed-tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch, Agent, AskUserQuestion
+model: fable
+allowed-tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch, Agent, Workflow, AskUserQuestion
 ---
 
 Investigate the question in `$ARGUMENTS` and write a **research artifact** — a
@@ -11,23 +12,45 @@ is the highest-leverage thing to review in the whole loop: a wrong line of
 research can steer hundreds of lines of code wrong, so the goal is a document a
 human can check in a few minutes. **Read-only: no plan, no code changes.**
 
+This skill runs on Fable (frontmatter `model: fable`): you decompose, brief,
+check and synthesize. Opus `researcher` subagents do the reading.
+
 ## Method
 
-1. **Decompose** the question into the specific things you need to learn.
-2. **Isolate context with subagents.** Dispatch read-only `Explore` subagents
-   (in parallel where the sub-questions are independent) to find, read, and
-   summarize — so grep/read noise stays in *their* context and only conclusions
-   return to yours. Subagents are for context isolation, not persona play; ask
-   each for a tight conclusion with `file:line` references, not a dump.
-3. **Ground every claim in the code.** Trace real definitions, callers, types,
-   and config. Cite `path:line`. Never assert behavior you didn't read. If you
-   consulted external docs, cite the URL.
+1. **Decompose** the question into the specific sub-questions you need answered.
+   Scale the count to the question: one researcher for a single mechanism, two
+   to four for a comparison or a feature that crosses modules, more only when
+   the subsystems are genuinely independent.
+2. **Brief each researcher.** Spawn `subagent_type: researcher` agents in
+   parallel, one per sub-question, and pass `model: opus` on every call so none
+   inherits Fable. Each brief has four parts, because a vague brief is how
+   researchers duplicate work or leave gaps:
+   - **Objective:** the sub-question and why it matters to the main question.
+   - **Output:** the notes file `thoughts/research/<slug>/<sub-question>.md` and
+     what it must contain.
+   - **Sources:** the directories, files, docs or pinned dependency sources to
+     use, including where the language's standard library lives at the pinned
+     version when the question touches it.
+   - **Boundaries:** what is out of scope, so researchers don't overlap.
+
+   More than about six researchers: run them as a Workflow instead of separate
+   Agent calls (this skill is your opt-in), with `agentType: 'researcher'`,
+   `model: 'opus'` and `effort: 'xhigh'` on every `agent()` call.
+3. **Check before you synthesize.** Read each notes file. For every claim the
+   answer depends on, open the cited `path:line` yourself and confirm it says
+   what the researcher says. Where two researchers disagree or a claim has no
+   anchor, resolve it by reading the code or send a targeted follow-up; never
+   smooth it over.
+4. **Ground every claim in the code.** Cite `path:line`. Never assert behavior
+   nobody read. Claims about a library or standard library cite its source at
+   the pinned version, not memory. If you consulted external docs, cite the URL.
 
 ## Output
 
 Resolve the path from `$ARGUMENTS`; otherwise write to `thoughts/research/<slug>.md`
 (create `thoughts/` if absent), or an existing `plans/`/`docs/`/`specs/` dir if
-the repo already uses one. Sections:
+the repo already uses one. The researchers' notes stay beside it in
+`thoughts/research/<slug>/`. Sections:
 
 - **Question** — what this investigates and why.
 - **Summary** — the answer in a few sentences.
@@ -52,6 +75,8 @@ writing the file and giving the summary, walk the user through them with
 - Give 2–4 concrete options each. Put your recommendation first, with
   "(Recommended)" in its label. Each description says what happens if it is
   chosen and what it costs, in plain words.
+- You may recommend, but never close a question yourself. A question stays open
+  until the user answers it.
 - Record the answers in the research file under `## Decisions (<date>)`, and cut
   `## Open questions` down to what is still open.
 
