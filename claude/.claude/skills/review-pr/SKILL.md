@@ -1,11 +1,16 @@
 ---
 name: review-pr
 description: Multi-pass review of the current branch as a pull request against a base branch, fanning out parallel specialized passes, then merging, reproducing, and reporting findings by severity. Use when asked to review the current branch, a diff, or a change before it ships. Reports findings only, it never posts them; pair with /review-comments for that.
-argument-hint: "[base-branch (default: main)]"
-allowed-tools: Bash, Read, Glob, Grep, Agent, Write, Skill
+argument-hint: "[base-branch or commit (default: main)] [--plan <plan path>] [--fix-diff]"
+allowed-tools: Bash, Read, Glob, Grep, Agent, Workflow, Write, Skill
 ---
 
-Review the current branch against the base branch. The base branch is $ARGUMENTS if provided, otherwise `main`.
+Review the current branch against the base branch. The base is the first non-flag word of $ARGUMENTS if provided, otherwise `main`. It may be a commit (as `/implement` passes it), in which case skip the fetch in Step 1 and diff against that commit directly.
+
+Two optional flags, both passed by `/implement`:
+
+- `--plan <path>`: the plan or spec this branch implements. It becomes the stated intent (Step 1).
+- `--fix-diff`: a re-review of a fix round. The base is the commit before the fixes, and Step 4 runs only the correctness, tests and whats-missing passes (plus the Fable correctness pass).
 
 The goal is a multi-pass review modeled on ultrareview: gather signals, fan out specialized passes in parallel, then merge findings. Do not skip the fan-out step — single-pass reviews miss issues.
 
@@ -37,6 +42,8 @@ Write a short `<dir>/intent.md` capturing what the author *says* this PR does (f
 
 - **Headline claim**: the one sentence the PR exists to make true ("the image no longer carries any credential", "restore is 14% faster"). Step 3 tests it directly.
 - **Deferred**: everything the description says is out of scope or left for later ("Not in this change", "follow-up", "known gap"). A finding that lands in this list is a design question at most.
+When `--plan` is given, build `intent.md` from the plan first and the commits second: its Goal is the headline claim, every phase's done-condition is a stated claim the diff must meet, its `## Decisions` sections and rejected approaches are deliberate choices (a finding that contradicts one is a design question at most), and anything the plan puts out of scope goes under Deferred. The whats-missing pass gets the done-conditions as its checklist.
+
 - **Linked work**: every PR and issue the description or commits reference (`#1277`, `VIRT-350`). Read each with `gh pr view <n> --json title,state,body` and note what it changes. A finding about a gap that a linked, in-flight PR closes is not a finding on this one, and a linked PR's description often states the runtime behaviour a pass will guess at.
 
 ## Step 2: Read project conventions
@@ -77,7 +84,7 @@ Record both in `<dir>/signals.md` when they finish. A failure here is a finding,
 
 ## Step 4: Fan out specialized review passes
 
-Spawn the following subagents **in parallel** (single message, multiple Agent tool calls). Use `subagent_type: code-reviewer`.
+Run the passes as one Workflow (this skill is your opt-in to the Workflow tool), so they run in parallel and their prompt cache is shared. One `agent()` per pass, each with `agentType: 'code-reviewer'`, `model: 'opus'`, `effort: 'xhigh'` and `label: '<pass-name>'`. Add two more with `model: 'fable'`, `effort: 'xhigh'`: the **correctness** and **security** charters again, writing `<dir>/correctness-fable.md` and `<dir>/security-fable.md`, because a second model catches a different set of bugs. Under `--fix-diff`, run only correctness, tests, whats-missing and correctness-fable. If the Workflow tool is unavailable, spawn the same set as parallel Agent calls with the same `model` on each.
 
 It is the only type that satisfies both constraints at once: read-only toward the repo by charter (it recommends fixes and never applies them), while still holding Write, so its findings land in `<dir>` instead of in the orchestrator's context. It is also built for reviewing a changeset rather than for search.
 
@@ -123,7 +130,7 @@ Each subagent prompt must include:
 
 Read all `<dir>/*.md` files. Then:
 
-1. **Dedupe**: items flagged by multiple passes get a single entry tagged with the pass names (e.g., `[security, correctness]`). Keep the most specific phrasing.
+1. **Dedupe**: items flagged by multiple passes get a single entry tagged with the pass names (e.g., `[security, correctness]`, or `[correctness, correctness-fable]` when both models found it). Keep the most specific phrasing.
 2. **Re-rank**:
    - **High**: memory safety, security holes, data loss, breaking changes, silent failures in critical paths.
    - **Medium**: logic errors, leaks, contract violations, missing validation at boundaries, test gaps for new behavior.
@@ -145,7 +152,7 @@ Read all `<dir>/*.md` files. Then:
 
 ## Step 6: Attempt to reproduce findings
 
-For **every** `issue`-kind finding — all severities, not just High/Medium — try to actually produce evidence to confirm or refute it in practice before presenting. Design and style findings are not reproduced (they're trade-offs and presentation, not falsifiable claims). Spawn a single `subagent_type: general-purpose` agent for this step. Unlike the Step 4 passes it genuinely may need to touch the repo (a failing test, temporary instrumentation), which is why it gets the broader type and the explicit boundaries below.
+For **every** `issue`-kind finding — all severities, not just High/Medium — try to actually produce evidence to confirm or refute it in practice before presenting. Design and style findings are not reproduced (they're trade-offs and presentation, not falsifiable claims). Spawn a single `subagent_type: general-purpose` agent for this step, with `model: opus` and effort `xhigh`. Unlike the Step 4 passes it genuinely may need to touch the repo (a failing test, temporary instrumentation), which is why it gets the broader type and the explicit boundaries below.
 
 The subagent prompt must include:
 - Pointer to `<dir>/issues.md` (every issue-kind finding — attempt all of them) and `<dir>/verify.md` (the concrete pre-written checks for the High ones)
@@ -185,7 +192,7 @@ After the subagent returns, read `<dir>/reproduced.md` and update the merged fin
 
 A confirmed finding means the mechanism happens. It does not mean the finding is right about what that mechanism means. In practice this is where most of the remaining errors are: a reproduction faithfully demonstrates something the author chose on purpose, that a linked PR is already fixing, that no real caller ever triggers, or that rests on a wrong belief about a dependency.
 
-Spawn one fresh `subagent_type: code-reviewer` agent whose only job is to argue that each confirmed finding is the reviewer's misunderstanding. A fresh agent matters, because the one that reproduced a finding is anchored on it. Give it `<dir>/reproduced.md`, `<dir>/intent.md` (with its Deferred and Linked work sections) and the repo. It may write only `<dir>/refutation.md`, and may download dependency source into `<dir>`. For every confirmed finding it answers each of these with evidence, quoting a file and line or naming a command and its output:
+Spawn one fresh `subagent_type: code-reviewer` agent with `model: fable` (a different model from the passes that found the issues) whose only job is to argue that each confirmed finding is the reviewer's misunderstanding. A fresh agent matters, because the one that reproduced a finding is anchored on it. Give it `<dir>/reproduced.md`, `<dir>/intent.md` (with its Deferred and Linked work sections) and the repo. It may write only `<dir>/refutation.md`, and may download dependency source into `<dir>`. For every confirmed finding it answers each of these with evidence, quoting a file and line or naming a command and its output:
 
 1. **Did the author choose this?** Search the surrounding code, the commit messages and the PR description for a comment or sentence that explains it. Quote it if found.
 2. **Is it deferred or already being fixed?** Check the Deferred list and read each linked PR's description and diff for the same gap.
