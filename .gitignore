@@ -13,3 +13,5 @@ __pycache__/
 
 # Licensed LiveKit fonts, fetched on demand from the private livekit/web repo.
 claude/.claude/skills/livekit-report/fonts/
+# Claude Code moves removed skills here; not part of the config.
+claude/.claude/skills/.trash/
